@@ -1,8 +1,7 @@
-package config
+package database
 
 import (
 	"fmt"
-	"home-monitor-backend/models"
 	"log"
 	"os"
 
@@ -22,12 +21,12 @@ func ConnectDB() {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		user, pass, host, port, name)
 
-	var err error
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database: ", err)
 	}
 
-	DB.AutoMigrate(&models.User{})
-	fmt.Println("Database connected and migrated")
+	DB = db
+
+	fmt.Println("Database connected")
 }

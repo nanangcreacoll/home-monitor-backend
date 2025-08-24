@@ -1,0 +1,219 @@
+basePath: /api
+definitions:
+  models.ErrorResponse:
+    properties:
+      error: {}
+    type: object
+  models.UserLoginRequest:
+    properties:
+      password:
+        maxLength: 255
+        minLength: 6
+        type: string
+      username:
+        maxLength: 255
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.UserLoginResponse:
+    properties:
+      token:
+        type: string
+      username:
+        maxLength: 255
+        type: string
+      uuid:
+        type: string
+    required:
+    - token
+    - username
+    - uuid
+    type: object
+  models.UserProfileResponse:
+    properties:
+      created_at:
+        type: string
+      updated_at:
+        type: string
+      username:
+        maxLength: 255
+        type: string
+      uuid:
+        type: string
+    required:
+    - created_at
+    - updated_at
+    - username
+    - uuid
+    type: object
+  models.UserRegisterRequest:
+    properties:
+      password:
+        maxLength: 255
+        minLength: 6
+        type: string
+      username:
+        maxLength: 255
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.UserRegisterResponse:
+    properties:
+      created_at:
+        type: string
+      updated_at:
+        type: string
+      username:
+        maxLength: 255
+        type: string
+      uuid:
+        type: string
+    required:
+    - created_at
+    - updated_at
+    - username
+    - uuid
+    type: object
+  models.UserUpdateRequest:
+    properties:
+      password:
+        maxLength: 255
+        minLength: 6
+        type: string
+      username:
+        maxLength: 255
+        minLength: 3
+        type: string
+    type: object
+info:
+  contact: {}
+  description: API for Home Monitoring System
+  title: Home Monitor API
+  version: "1.0"
+paths:
+  /user/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token
+      parameters:
+      - description: User login request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserLoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: User login
+      tags:
+      - users
+  /user/profile:
+    get:
+      description: Retrieve the profile of the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserProfileResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user profile
+      tags:
+      - users
+  /user/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: User register request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.UserRegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Register new user
+      tags:
+      - users
+  /user/update:
+    put:
+      consumes:
+      - application/json
+      description: Update the profile of the authenticated user
+      parameters:
+      - description: User update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserRegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Update user profile
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

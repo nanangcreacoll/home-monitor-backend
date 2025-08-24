@@ -2,15 +2,22 @@ package routes
 
 import (
 	"home-monitor-backend/controllers"
+	"home-monitor-backend/middlewares"
 
 	"github.com/gin-gonic/gin"
 )
 
-func UserRoutes(r *gin.Engine) {
-	api := r.Group("/api")
+func UserRoutes(r *gin.Engine, controllers *controllers.UserController) {
+	api := r.Group("/api/user")
 	{
-		api.POST("/user/register", controllers.UserRegister)
-		api.POST("/user/login", controllers.UserLogin)
-		api.GET("/user/profile", controllers.UserProfile)
+		api.POST("/register", controllers.UserRegister)
+		api.POST("/login", controllers.UserLogin)
+	}
+
+	apiAuth := r.Group("/api/user")
+	apiAuth.Use(middlewares.Auth())
+	{
+		apiAuth.GET("/profile", controllers.UserProfile)
+		apiAuth.PUT("/update", controllers.UserUpdate)
 	}
 }
