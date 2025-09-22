@@ -10,13 +10,13 @@ import (
 func UserRoutes(r *gin.Engine, controllers *controllers.UserController) {
 	api := r.Group("/api/user")
 	{
-		api.POST("/register", controllers.UserRegister)
 		api.POST("/login", controllers.UserLogin)
 	}
 
 	apiAuth := r.Group("/api/user")
 	apiAuth.Use(middlewares.Auth())
 	{
+		apiAuth.POST("/register", controllers.UserRegister)
 		apiAuth.GET("/profile", controllers.UserProfile)
 		apiAuth.PUT("/update", controllers.UserUpdate)
 	}

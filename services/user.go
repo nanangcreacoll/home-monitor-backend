@@ -5,13 +5,13 @@ import (
 	"home-monitor-backend/models"
 	"home-monitor-backend/repositories"
 	"home-monitor-backend/utils"
-	"log"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
-	UserRegister(input models.UserRegisterRequest) (*models.User, error)
+	UserRegister(input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, error)
 	UserLogin(input models.UserLoginRequest) (*models.User, string, error)
 	UserProfile(userUUID uuid.UUID) (*models.User, error)
 	UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, error)
@@ -25,22 +25,32 @@ func NewUserService(userRepo repositories.UserRepository) UserService {
 	return &userService{userRepo: userRepo}
 }
 
-func (s *userService) UserRegister(input models.UserRegisterRequest) (*models.User, error) {
-	_, err := s.userRepo.UserFindByUsername(input.Username)
+func (s *userService) UserRegister(input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, error) {
+	user, err := s.userRepo.UserFindByUUID(userUUID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	if user.Role != models.UserRoleAdmin {
+		return nil, errors.New("only admin can register new users")
+	}
+
+	_, err = s.userRepo.UserFindByUsername(input.Username)
 	if err == nil {
 		return nil, errors.New("username already exists")
 	}
 
-	user := &models.User{
+	newUser := &models.User{
 		UUID:     uuid.New(),
 		Username: input.Username,
 		Password: input.Password,
+		Role:     models.UserRoleUser,
 	}
 
-	if err := s.userRepo.UserCreate(user); err != nil {
+	if err := s.userRepo.UserCreate(newUser); err != nil {
 		return nil, err
 	}
-	return user, nil
+	return newUser, nil
 }
 
 func (s *userService) UserLogin(input models.UserLoginRequest) (*models.User, string, error) {
@@ -70,31 +80,43 @@ func (s *userService) UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpda
 		return user, errors.New("user not found")
 	}
 
-	if userUpdate.Username != "" {
-		existingUser, err := s.userRepo.UserFindByUsername(userUpdate.Username)
-		if err == nil && existingUser.ID != user.ID {
-			return user, errors.New("username already exists")
-		}
-
-		if userUpdate.Username == user.Username {
-			return user, errors.New("new username must be different from the current one")
-		}
-
-		user.Username = userUpdate.Username
+	if userUpdate.Username == "" && userUpdate.Password == "" {
+		return user, errors.New("need to provide username or password to update")
 	}
 
-	if userUpdate.Password != "" {
-		if user.CheckPassword(userUpdate.Password) {
-			return user, errors.New("new password must be different from the current one")
-		}
-
-		user.Password = userUpdate.Password
-		if err := user.HashPassword(); err != nil {
-			log.Println("Error hashing password:", err)
-			return user, errors.New("failed to update password")
-		}
-
+	userToUpdate, err := s.userRepo.UserFindByUsername(userUpdate.Username)
+	if err != nil {
+		return user, errors.New("username or password is incorrect")
 	}
 
-	return user, s.userRepo.UserUpdate(user)
+	if err := bcrypt.CompareHashAndPassword([]byte(userToUpdate.Password), []byte(userUpdate.Password)); err != nil {
+		return user, errors.New("username or password is incorrect")
+	}
+
+	if userUpdate.NewUsername == "" && userUpdate.NewPassword == "" && userUpdate.Role == nil {
+		return user, errors.New("need to provide at least one field to update")
+	}
+
+	if userUpdate.NewUsername != "" {
+		userToUpdate.Username = userUpdate.NewUsername
+	}
+
+	if userUpdate.NewPassword != "" {
+		userToUpdate.Password = userUpdate.NewPassword
+		err = userToUpdate.HashPassword()
+		if err != nil {
+			return user, errors.New("failed to update")
+		}
+	}
+
+	if userUpdate.Role != nil {
+		if user.Role != models.UserRoleAdmin {
+			return user, errors.New("only admin can update role")
+		} else if user.Role == models.UserRoleAdmin && user.UUID == userToUpdate.UUID {
+			return user, errors.New("admin cannot change their own role")
+		}
+		userToUpdate.Role = *userUpdate.Role
+	}
+
+	return userToUpdate, s.userRepo.UserUpdate(userToUpdate)
 }

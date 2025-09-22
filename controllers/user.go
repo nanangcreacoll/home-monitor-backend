@@ -29,6 +29,12 @@ func NewUserController(userService services.UserService) *UserController {
 // @Failure 400 {object} models.ErrorResponse
 // @Router /user/register [post]
 func (ctrl *UserController) UserRegister(c *gin.Context) {
+	userUUID, exists := c.Get("userUUID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
 	var input models.UserRegisterRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		errors := utils.ValidationError(err)
@@ -36,7 +42,7 @@ func (ctrl *UserController) UserRegister(c *gin.Context) {
 		return
 	}
 
-	user, err := ctrl.userService.UserRegister(input)
+	user, err := ctrl.userService.UserRegister(input, userUUID.(uuid.UUID))
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
