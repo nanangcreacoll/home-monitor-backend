@@ -34,6 +34,14 @@ func main() {
 	database.ConnectDB()
 	database.Migrations()
 
+	if os.Getenv("SEED") == "true" {
+		if err := database.Seed(); err != nil {
+			log.Fatal("Seeding failed: ", err)
+		}
+		log.Println("Seeding completed. Exiting as requested by SEED=true.")
+		return
+	}
+
 	userRepo := repositories.NewUserRepository()
 	userService := services.NewUserService(userRepo)
 	userController := controllers.NewUserController(userService)
