@@ -54,6 +54,7 @@ func main() {
 
 	r := gin.Default()
 
+	routes.RootRoute(r)
 	routes.UserRoutes(r, userController)
 
 	docs.SwaggerInfo.BasePath = "/api"

@@ -27,6 +27,11 @@ func NewUserController(userService services.UserService) *UserController {
 // @Param request body models.UserRegisterRequest true "User register request"
 // @Success 201 {object} models.UserRegisterResponse
 // @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Failure 409 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
 // @Router /user/register [post]
 func (ctrl *UserController) UserRegister(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
@@ -42,13 +47,13 @@ func (ctrl *UserController) UserRegister(c *gin.Context) {
 		return
 	}
 
-	user, err := ctrl.userService.UserRegister(input, userUUID.(uuid.UUID))
+	user, statusCode, err := ctrl.userService.UserRegister(input, userUUID.(uuid.UUID))
 	if err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		c.JSON(statusCode, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, models.UserRegisterResponse{
+	c.JSON(statusCode, models.UserRegisterResponse{
 		UUID:      user.UUID,
 		Username:  user.Username,
 		CreatedAt: user.CreatedAt,
@@ -66,6 +71,7 @@ func (ctrl *UserController) UserRegister(c *gin.Context) {
 // @Success 200 {object} models.UserLoginResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Router /user/login [post]
 func (ctrl *UserController) UserLogin(c *gin.Context) {
 	var input models.UserLoginRequest
@@ -75,13 +81,13 @@ func (ctrl *UserController) UserLogin(c *gin.Context) {
 		return
 	}
 
-	user, token, err := ctrl.userService.UserLogin(input)
+	user, token, statusCode, err := ctrl.userService.UserLogin(input)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: err.Error()})
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, models.UserLoginResponse{
+	c.JSON(statusCode, models.UserLoginResponse{
 		UUID:     user.UUID,
 		Username: user.Username,
 		Token:    "Bearer " + token,
@@ -105,13 +111,13 @@ func (ctrl *UserController) UserProfile(c *gin.Context) {
 		return
 	}
 
-	user, err := ctrl.userService.UserProfile(userUUID.(uuid.UUID))
+	user, statusCode, err := ctrl.userService.UserProfile(userUUID.(uuid.UUID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(statusCode, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, models.UserProfileResponse{
+	c.JSON(statusCode, models.UserProfileResponse{
 		UUID:      user.UUID,
 		Username:  user.Username,
 		CreatedAt: user.CreatedAt,
@@ -129,7 +135,10 @@ func (ctrl *UserController) UserProfile(c *gin.Context) {
 // @Success 200 {object} models.UserRegisterResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
 // @Router /user/update [put]
 func (ctrl *UserController) UserUpdate(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
@@ -145,13 +154,13 @@ func (ctrl *UserController) UserUpdate(c *gin.Context) {
 		return
 	}
 
-	user, err := ctrl.userService.UserUpdate(userUUID.(uuid.UUID), &input)
+	user, statusCode, err := ctrl.userService.UserUpdate(userUUID.(uuid.UUID), &input)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(statusCode, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, models.UserRegisterResponse{
+	c.JSON(statusCode, models.UserRegisterResponse{
 		UUID:      user.UUID,
 		Username:  user.Username,
 		CreatedAt: user.CreatedAt,

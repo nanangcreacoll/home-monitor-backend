@@ -5,16 +5,17 @@ import (
 	"home-monitor-backend/models"
 	"home-monitor-backend/repositories"
 	"home-monitor-backend/utils"
+	"net/http"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
-	UserRegister(input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, error)
-	UserLogin(input models.UserLoginRequest) (*models.User, string, error)
-	UserProfile(userUUID uuid.UUID) (*models.User, error)
-	UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, error)
+	UserRegister(input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, int, error)
+	UserLogin(input models.UserLoginRequest) (*models.User, string, int, error)
+	UserProfile(userUUID uuid.UUID) (*models.User, int, error)
+	UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error)
 }
 
 type userService struct {
@@ -25,19 +26,19 @@ func NewUserService(userRepo repositories.UserRepository) UserService {
 	return &userService{userRepo: userRepo}
 }
 
-func (s *userService) UserRegister(input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, error) {
+func (s *userService) UserRegister(input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, int, error) {
 	user, err := s.userRepo.UserFindByUUID(userUUID)
 	if err != nil {
-		return nil, errors.New("user not found")
+		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 
 	if user.Role != models.UserRoleAdmin {
-		return nil, errors.New("only admin can register new users")
+		return nil, http.StatusForbidden, errors.New("only admin can register new users")
 	}
 
 	_, err = s.userRepo.UserFindByUsername(input.Username)
 	if err == nil {
-		return nil, errors.New("username already exists")
+		return nil, http.StatusConflict, errors.New("username already exists")
 	}
 
 	newUser := &models.User{
@@ -48,53 +49,53 @@ func (s *userService) UserRegister(input models.UserRegisterRequest, userUUID uu
 	}
 
 	if err := s.userRepo.UserCreate(newUser); err != nil {
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
-	return newUser, nil
+	return newUser, http.StatusCreated, nil
 }
 
-func (s *userService) UserLogin(input models.UserLoginRequest) (*models.User, string, error) {
+func (s *userService) UserLogin(input models.UserLoginRequest) (*models.User, string, int, error) {
 	user, err := s.userRepo.UserFindByUsername(input.Username)
 	if err != nil || !user.CheckPassword(input.Password) {
-		return nil, "", errors.New("invalid username or password")
+		return nil, "", http.StatusUnauthorized, errors.New("invalid username or password")
 	}
 
 	token, err := utils.GenerateJWT(user.UUID)
 	if err != nil {
-		return nil, "", err
+		return nil, "", http.StatusInternalServerError, err
 	}
-	return user, token, nil
+	return user, token, http.StatusOK, nil
 }
 
-func (s *userService) UserProfile(userUUID uuid.UUID) (*models.User, error) {
+func (s *userService) UserProfile(userUUID uuid.UUID) (*models.User, int, error) {
 	user, err := s.userRepo.UserFindByUUID(userUUID)
 	if err != nil {
-		return nil, errors.New("user not found")
+		return nil, http.StatusNotFound, errors.New("user not found")
 	}
-	return user, nil
+	return user, http.StatusOK, nil
 }
 
-func (s *userService) UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, error) {
+func (s *userService) UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error) {
 	user, err := s.userRepo.UserFindByUUID(userUUID)
 	if err != nil {
-		return user, errors.New("user not found")
+		return user, http.StatusNotFound, errors.New("user not found")
 	}
 
 	if userUpdate.Username == "" && userUpdate.Password == "" {
-		return user, errors.New("need to provide username or password to update")
+		return user, http.StatusBadRequest, errors.New("need to provide username or password to update")
 	}
 
 	userToUpdate, err := s.userRepo.UserFindByUsername(userUpdate.Username)
 	if err != nil {
-		return user, errors.New("username or password is incorrect")
+		return user, http.StatusUnauthorized, errors.New("username or password is incorrect")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(userToUpdate.Password), []byte(userUpdate.Password)); err != nil {
-		return user, errors.New("username or password is incorrect")
+		return user, http.StatusUnauthorized, errors.New("username or password is incorrect")
 	}
 
 	if userUpdate.NewUsername == "" && userUpdate.NewPassword == "" && userUpdate.Role == nil {
-		return user, errors.New("need to provide at least one field to update")
+		return user, http.StatusBadRequest, errors.New("need to provide at least one field to update")
 	}
 
 	if userUpdate.NewUsername != "" {
@@ -105,18 +106,18 @@ func (s *userService) UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpda
 		userToUpdate.Password = userUpdate.NewPassword
 		err = userToUpdate.HashPassword()
 		if err != nil {
-			return user, errors.New("failed to update")
+			return user, http.StatusInternalServerError, errors.New("failed to update")
 		}
 	}
 
 	if userUpdate.Role != nil {
 		if user.Role != models.UserRoleAdmin {
-			return user, errors.New("only admin can update role")
+			return user, http.StatusForbidden, errors.New("only admin can update role")
 		} else if user.Role == models.UserRoleAdmin && user.UUID == userToUpdate.UUID {
-			return user, errors.New("admin cannot change their own role")
+			return user, http.StatusForbidden, errors.New("admin cannot change their own role")
 		}
 		userToUpdate.Role = *userUpdate.Role
 	}
 
-	return userToUpdate, s.userRepo.UserUpdate(userToUpdate)
+	return userToUpdate, http.StatusOK, s.userRepo.UserUpdate(userToUpdate)
 }
