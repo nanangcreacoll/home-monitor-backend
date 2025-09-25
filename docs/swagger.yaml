@@ -80,16 +80,42 @@ definitions:
     - username
     - uuid
     type: object
+  models.UserRole:
+    enum:
+    - 1
+    - 2
+    format: int32
+    type: integer
+    x-enum-varnames:
+    - UserRoleAdmin
+    - UserRoleUser
   models.UserUpdateRequest:
     properties:
+      new_password:
+        maxLength: 255
+        minLength: 6
+        type: string
+      new_username:
+        maxLength: 255
+        minLength: 3
+        type: string
       password:
         maxLength: 255
         minLength: 6
         type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/models.UserRole'
+        enum:
+        - 1
+        - 2
       username:
         maxLength: 255
         minLength: 3
         type: string
+    required:
+    - password
+    - username
     type: object
 info:
   contact: {}
@@ -122,6 +148,10 @@ paths:
             $ref: '#/definitions/models.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: User login
@@ -173,6 +203,24 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Register new user
       tags:
       - users
@@ -203,10 +251,20 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "404":
           description: Not Found
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update user profile
       tags:
       - users
