@@ -16,14 +16,16 @@ type UserService interface {
 	UserLogin(input models.UserLoginRequest) (*models.User, string, int, error)
 	UserProfile(userUUID uuid.UUID) (*models.User, int, error)
 	UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error)
+	UserDelete(userUUID uuid.UUID) (*models.User, int, error)
 }
 
 type userService struct {
-	userRepo repositories.UserRepository
+	userRepo   repositories.UserRepository
+	deviceRepo repositories.DeviceRepository
 }
 
-func NewUserService(userRepo repositories.UserRepository) UserService {
-	return &userService{userRepo: userRepo}
+func NewUserService(userRepo repositories.UserRepository, deviceRepo repositories.DeviceRepository) UserService {
+	return &userService{userRepo: userRepo, deviceRepo: deviceRepo}
 }
 
 func (s *userService) UserRegister(input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, int, error) {
@@ -120,4 +122,27 @@ func (s *userService) UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpda
 	}
 
 	return userToUpdate, http.StatusOK, s.userRepo.UserUpdate(userToUpdate)
+}
+
+func (s *userService) UserDelete(userUUID uuid.UUID) (*models.User, int, error) {
+	user, err := s.userRepo.UserFindByUUID(userUUID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("user not found")
+	}
+
+	if user.Role != models.UserRoleAdmin {
+		return nil, http.StatusForbidden, errors.New("only admin can delete users")
+	} else if user.Role == models.UserRoleAdmin {
+		return nil, http.StatusForbidden, errors.New("admin cannot delete their own account")
+	}
+
+	deviceUser, err := s.deviceRepo.DeviceFindByUserID(user.ID)
+	if err == nil && len(deviceUser) > 0 {
+		return nil, http.StatusForbidden, errors.New("cannot delete user with associated devices")
+	}
+
+	if err := s.userRepo.UserDelete(user); err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return user, http.StatusOK, nil
 }

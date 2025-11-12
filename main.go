@@ -43,8 +43,11 @@ func main() {
 	}
 
 	userRepo := repositories.NewUserRepository()
-	userService := services.NewUserService(userRepo)
+	deviceRepo := repositories.NewDeviceRepository()
+	userService := services.NewUserService(userRepo, deviceRepo)
+	deviceService := services.NewDeviceService(deviceRepo, userRepo)
 	userController := controllers.NewUserController(userService)
+	deviceController := controllers.NewDeviceController(deviceService)
 
 	if os.Getenv("GIN_MODE") != "release" {
 		gin.SetMode(gin.DebugMode)
@@ -56,6 +59,7 @@ func main() {
 
 	routes.RootRoute(r)
 	routes.UserRoutes(r, userController)
+	routes.DeviceRoutes(r, deviceController)
 
 	docs.SwaggerInfo.BasePath = "/api"
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

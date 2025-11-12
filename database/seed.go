@@ -17,6 +17,14 @@ func Run(db *gorm.DB) error {
 		return errors.New("failed to run user seeder: " + err.Error())
 	}
 
+	if err := seeders.DeviceRun(db); err != nil {
+		return errors.New("failed to run device seeder: " + err.Error())
+	}
+
+	if err := seeders.DeviceMeasurementRun(db); err != nil {
+		return errors.New("failed to run device measurement seeder: " + err.Error())
+	}
+
 	return nil
 }
 

@@ -1,8 +1,39 @@
 basePath: /api
 definitions:
+  models.DeviceCreateRequest:
+    properties:
+      mac_address:
+        type: string
+      name:
+        maxLength: 255
+        type: string
+    required:
+    - mac_address
+    - name
+    type: object
+  models.DeviceResponse:
+    properties:
+      created_at:
+        type: string
+      mac_address:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      user_created_id:
+        type: integer
+      uuid:
+        type: string
+    type: object
   models.ErrorResponse:
     properties:
       error: {}
+    type: object
+  models.ResponseMessage:
+    properties:
+      message:
+        type: string
     type: object
   models.UserLoginRequest:
     properties:
@@ -123,6 +154,124 @@ info:
   title: Home Monitor API
   version: "1.0"
 paths:
+  /device:
+    post:
+      consumes:
+      - application/json
+      description: Create a new device
+      parameters:
+      - description: Device create request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.DeviceCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.DeviceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create new device
+      tags:
+      - devices
+  /device/{uuid}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a device by UUID
+      parameters:
+      - description: Device UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a device
+      tags:
+      - devices
+  /user/delete:
+    delete:
+      description: Delete the account of the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete user account
+      tags:
+      - users
   /user/login:
     post:
       consumes:

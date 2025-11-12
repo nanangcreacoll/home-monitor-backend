@@ -36,20 +36,20 @@ func NewUserController(userService services.UserService) *UserController {
 func (ctrl *UserController) UserRegister(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
 		return
 	}
 
 	var input models.UserRegisterRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		errors := utils.ValidationError(err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": errors})
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
 		return
 	}
 
 	user, statusCode, err := ctrl.userService.UserRegister(input, userUUID.(uuid.UUID))
 	if err != nil {
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -107,13 +107,13 @@ func (ctrl *UserController) UserLogin(c *gin.Context) {
 func (ctrl *UserController) UserProfile(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
 		return
 	}
 
 	user, statusCode, err := ctrl.userService.UserProfile(userUUID.(uuid.UUID))
 	if err != nil {
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -143,20 +143,20 @@ func (ctrl *UserController) UserProfile(c *gin.Context) {
 func (ctrl *UserController) UserUpdate(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
 		return
 	}
 
 	var input models.UserUpdateRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		errors := utils.ValidationError(err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": errors})
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
 		return
 	}
 
 	user, statusCode, err := ctrl.userService.UserUpdate(userUUID.(uuid.UUID), &input)
 	if err != nil {
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -166,4 +166,32 @@ func (ctrl *UserController) UserUpdate(c *gin.Context) {
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	})
+}
+
+// UserDelete godoc
+// @Summary Delete user account
+// @Description Delete the account of the authenticated user
+// @Tags users
+// @Produce json
+// @Success 200 {object} models.ResponseMessage
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
+// @Router /user/delete [delete]
+func (ctrl *UserController) UserDelete(c *gin.Context) {
+	userUUID, exists := c.Get("userUUID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
+		return
+	}
+
+	user, statusCode, err := ctrl.userService.UserDelete(userUUID.(uuid.UUID))
+	if err != nil {
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(statusCode, models.ResponseMessage{Message: "User " + user.Username + " deleted successfully"})
 }

@@ -11,8 +11,10 @@ import (
 type UserRepository interface {
 	UserFindByUsername(username string) (*models.User, error)
 	UserFindByUUID(uuid uuid.UUID) (*models.User, error)
+	UserFindByID(id uint) (*models.User, error)
 	UserCreate(user *models.User) error
 	UserUpdate(user *models.User) error
+	UserDelete(user *models.User) error
 }
 
 type userRepository struct {
@@ -53,4 +55,8 @@ func (r *userRepository) UserCreate(user *models.User) error {
 
 func (r *userRepository) UserUpdate(user *models.User) error {
 	return r.db.Save(user).Error
+}
+
+func (r *userRepository) UserDelete(user *models.User) error {
+	return r.db.Delete(user).Error
 }
