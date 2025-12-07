@@ -51,7 +51,7 @@ func (ctrl *DeviceController) DeviceRegister(c *gin.Context) {
 		Name:       input.Name,
 	}
 
-	createdDevice, statusCode, err := ctrl.deviceService.DeviceRegister(device, userUUID.(uuid.UUID))
+	createdDevice, statusCode, err := ctrl.deviceService.DeviceRegister(userUUID.(uuid.UUID), device)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -89,13 +89,17 @@ func (ctrl *DeviceController) DeviceDelete(c *gin.Context) {
 		return
 	}
 
-	var input models.DeviceDeleteRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+	deviceUUID, err := uuid.Parse(c.Param("uuid"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "Invalid device UUID"})
 		return
 	}
 
-	statusCode, err := ctrl.deviceService.DeviceDelete(input.UUID, userUUID.(uuid.UUID))
+	deviceDeleteRequest := models.DeviceDeleteRequest{
+		UUID: deviceUUID,
+	}
+
+	statusCode, err := ctrl.deviceService.DeviceDelete(deviceDeleteRequest.UUID, userUUID.(uuid.UUID))
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -154,4 +158,98 @@ func (ctrl *DeviceController) DeviceList(c *gin.Context) {
 	}
 
 	c.JSON(statusCode, models.DeviceListResponse{Devices: deviceResponses})
+}
+
+// DeviceProfile godoc
+// @Summary Get device profile
+// @Description Get the profile of a device by UUID
+// @Tags devices
+// @Produce json
+// @Param uuid path string true "Device UUID"
+// @Success 200 {object} models.DeviceResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
+// @Router /device/{uuid} [get]
+func (ctrl *DeviceController) DeviceProfile(c *gin.Context) {
+	userUUID, exists := c.Get("userUUID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
+		return
+	}
+
+	deviceUUIDParam := c.Param("uuid")
+	deviceUUID, err := uuid.Parse(deviceUUIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "Invalid device UUID"})
+		return
+	}
+
+	device, statusCode, err := ctrl.deviceService.DeviceProfile(userUUID.(uuid.UUID), deviceUUID)
+	if err != nil {
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(statusCode, models.DeviceResponse{
+		UUID:          device.UUID,
+		MacAddress:    device.MacAddress,
+		Name:          device.Name,
+		UserCreatedID: device.UserCreatedID,
+		CreatedAt:     device.CreatedAt,
+		UpdatedAt:     device.UpdatedAt,
+	})
+}
+
+// DeviceUpdate godoc
+// @Summary Update device
+// @Description Update the details of a device by UUID
+// @Tags devices
+// @Accept json
+// @Produce json
+// @Param uuid path string true "Device UUID"
+// @Param request body models.DeviceUpdateRequest true "Device update request"
+// @Success 200 {object} models.DeviceResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
+// @Router /device/{uuid} [put]
+func (ctrl *DeviceController) DeviceUpdate(c *gin.Context) {
+	userUUID, exists := c.Get("userUUID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
+		return
+	}
+
+	deviceUUIDParam := c.Param("uuid")
+	deviceUUID, err := uuid.Parse(deviceUUIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "Invalid device UUID"})
+		return
+	}
+
+	var input models.DeviceUpdateRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	updatedDevice, statusCode, err := ctrl.deviceService.DeviceUpdate(userUUID.(uuid.UUID), deviceUUID, &input)
+	if err != nil {
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(statusCode, models.DeviceResponse{
+		UUID:          updatedDevice.UUID,
+		MacAddress:    updatedDevice.MacAddress,
+		Name:          updatedDevice.Name,
+		UserCreatedID: updatedDevice.UserCreatedID,
+		CreatedAt:     updatedDevice.CreatedAt,
+		UpdatedAt:     updatedDevice.UpdatedAt,
+	})
 }

@@ -33,6 +33,14 @@ definitions:
       uuid:
         type: string
     type: object
+  models.DeviceUpdateRequest:
+    properties:
+      mac_address:
+        type: string
+      name:
+        maxLength: 255
+        type: string
+    type: object
   models.ErrorResponse:
     properties:
       error: {}
@@ -246,6 +254,86 @@ paths:
       security:
       - BearerAuth: []
       summary: Delete a device
+      tags:
+      - devices
+    get:
+      description: Get the profile of a device by UUID
+      parameters:
+      - description: Device UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DeviceResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get device profile
+      tags:
+      - devices
+    put:
+      consumes:
+      - application/json
+      description: Update the details of a device by UUID
+      parameters:
+      - description: Device UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Device update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.DeviceUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DeviceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update device
       tags:
       - devices
   /device/list:

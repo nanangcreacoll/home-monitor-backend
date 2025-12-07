@@ -4,6 +4,7 @@ import (
 	"home-monitor-backend/controllers"
 	"home-monitor-backend/database"
 	"home-monitor-backend/docs"
+	"home-monitor-backend/pkg"
 	"home-monitor-backend/repositories"
 	"home-monitor-backend/routes"
 	"home-monitor-backend/services"
@@ -40,11 +41,12 @@ func main() {
 	database.ConnectDB()
 	database.Migrations()
 
-	if os.Getenv("SEED") == "true" {
-		if err := database.Seed(); err != nil {
-			log.Fatal("Seeding failed: ", err)
+	if os.Args[len(os.Args)-1] == "--seed" || os.Args[len(os.Args)-1] == "-s" {
+		err := database.Seed()
+		if err != nil {
+			log.Fatalf("Seeding failed: %v", err)
 		}
-		log.Println("Seeding completed. Exiting as requested by SEED=true.")
+		log.Println("Seeding completed successfully")
 		return
 	}
 
@@ -69,6 +71,13 @@ func main() {
 
 	docs.SwaggerInfo.BasePath = "/api"
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+
+	err = pkg.MqttInit()
+	if err != nil {
+		log.Fatalf("Failed to initialize MQTT client: %v", err)
+	}
+
+	go pkg.DeviceInit(deviceRepo)
 
 	r.Run(":8080")
 }

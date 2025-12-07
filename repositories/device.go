@@ -12,6 +12,7 @@ type DeviceRepository interface {
 	DeviceCreate(device *models.Device) error
 	DeviceDelete(device *models.Device) error
 	DeviceList(length int, latest bool) ([]models.Device, error)
+	DeviceUpdate(device *models.Device) (models.Device, error)
 	DeviceFindByUUID(deviceUUID uuid.UUID) (*models.Device, error)
 	DeviceFindByUserID(userID uint) ([]models.Device, error)
 	DeviceFindByMacAddress(macAddress string) (*models.Device, error)
@@ -51,6 +52,17 @@ func (r *deviceRepository) DeviceList(length int, latest bool) ([]models.Device,
 		return nil, err
 	}
 	return devices, nil
+}
+
+func (r *deviceRepository) DeviceUpdate(device *models.Device) (models.Device, error) {
+	var existingDevice models.Device
+	if err := r.db.First(&existingDevice, device.ID).Error; err != nil {
+		return existingDevice, err
+	}
+
+	existingDevice = *device
+	result := r.db.Model(&existingDevice).Updates(existingDevice)
+	return existingDevice, result.Error
 }
 
 func (r *deviceRepository) DeviceFindByUUID(deviceUUID uuid.UUID) (*models.Device, error) {

@@ -23,6 +23,10 @@ func FindDotEnv(levels int) string {
 		if infoPath, err := os.Stat(envPath); err == nil && !infoPath.IsDir() {
 			return envPath
 		}
+
+		if currentDir == "/" {
+			break
+		}
 	}
 
 	currentDir, err = os.Getwd()
@@ -44,6 +48,10 @@ func FindDotEnv(levels int) string {
 					return envPath
 				}
 			}
+		}
+
+		if currentDir == "/" {
+			break
 		}
 
 		if !found {

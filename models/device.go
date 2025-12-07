@@ -53,6 +53,11 @@ type DeviceMeasurement struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type DeviceMeasurementPayload struct {
+	Temperature float64 `json:"temperature"`
+	Humidity    float64 `json:"humidity"`
+}
+
 type DeviceMeasurementListResponse struct {
 	Measurements []DeviceMeasurement `json:"measurements"`
 }

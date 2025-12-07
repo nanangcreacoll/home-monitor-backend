@@ -10,9 +10,11 @@ import (
 )
 
 type DeviceService interface {
-	DeviceRegister(device *models.Device, userUUID uuid.UUID) (*models.Device, int, error)
-	DeviceDelete(deviceUUID uuid.UUID, userUUID uuid.UUID) (int, error)
+	DeviceRegister(userUUID uuid.UUID, device *models.Device) (*models.Device, int, error)
+	DeviceDelete(userUUID uuid.UUID, deviceUUID uuid.UUID) (int, error)
 	DeviceList(userUUID uuid.UUID, length int, latest bool) ([]models.Device, int, error)
+	DeviceProfile(userUUID uuid.UUID, deviceUUID uuid.UUID) (*models.Device, int, error)
+	DeviceUpdate(userUUID uuid.UUID, deviceUUID uuid.UUID, deviceUpdate *models.DeviceUpdateRequest) (*models.Device, int, error)
 }
 
 type deviceService struct {
@@ -24,7 +26,7 @@ func NewDeviceService(deviceRepo repositories.DeviceRepository, userRepo reposit
 	return &deviceService{deviceRepo: deviceRepo, userRepo: userRepo}
 }
 
-func (s *deviceService) DeviceRegister(device *models.Device, userUUID uuid.UUID) (*models.Device, int, error) {
+func (s *deviceService) DeviceRegister(userUUID uuid.UUID, device *models.Device) (*models.Device, int, error) {
 	user, err := s.userRepo.UserFindByUUID(userUUID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("user not found")
@@ -47,7 +49,7 @@ func (s *deviceService) DeviceRegister(device *models.Device, userUUID uuid.UUID
 	return device, http.StatusCreated, nil
 }
 
-func (s *deviceService) DeviceDelete(deviceUUID uuid.UUID, userUUID uuid.UUID) (int, error) {
+func (s *deviceService) DeviceDelete(userUUID uuid.UUID, deviceUUID uuid.UUID) (int, error) {
 	user, err := s.userRepo.UserFindByUUID(userUUID)
 	if err != nil {
 		return http.StatusNotFound, errors.New("user not found")
@@ -89,4 +91,46 @@ func (s *deviceService) DeviceList(userUUID uuid.UUID, length int, latest bool) 
 		return nil, http.StatusInternalServerError, err
 	}
 	return devices, http.StatusOK, nil
+}
+
+func (s *deviceService) DeviceProfile(userUUID uuid.UUID, deviceUUID uuid.UUID) (*models.Device, int, error) {
+	_, err := s.userRepo.UserFindByUUID(userUUID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("user not found")
+	}
+
+	device, err := s.deviceRepo.DeviceFindByUUID(deviceUUID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("device not found")
+	}
+	return device, http.StatusOK, nil
+}
+
+func (s *deviceService) DeviceUpdate(userUUID uuid.UUID, deviceUUID uuid.UUID, deviceUpdate *models.DeviceUpdateRequest) (*models.Device, int, error) {
+	user, err := s.userRepo.UserFindByUUID(userUUID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("user not found")
+	}
+
+	if user.Role != models.UserRoleAdmin {
+		return nil, http.StatusForbidden, errors.New("only admin can update devices")
+	}
+
+	device, err := s.deviceRepo.DeviceFindByUUID(deviceUUID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("device not found")
+	}
+
+	if deviceUpdate.MacAddress == "" || deviceUpdate.Name == "" {
+		return nil, http.StatusBadRequest, errors.New("name and mac address cannot be empty")
+	}
+
+	device.Name = deviceUpdate.Name
+
+	updatedDevice, err := s.deviceRepo.DeviceUpdate(device)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	return &updatedDevice, http.StatusOK, nil
 }
