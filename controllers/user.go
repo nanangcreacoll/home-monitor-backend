@@ -32,7 +32,7 @@ func NewUserController(userService services.UserService) *UserController {
 // @Failure 409 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Security BearerAuth
-// @Router /user/register [post]
+// @Router /user [post]
 func (ctrl *UserController) UserRegister(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
 	if !exists {
@@ -103,7 +103,7 @@ func (ctrl *UserController) UserLogin(c *gin.Context) {
 // @Failure 401 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Security BearerAuth
-// @Router /user/profile [get]
+// @Router /user [get]
 func (ctrl *UserController) UserProfile(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
 	if !exists {
@@ -139,7 +139,7 @@ func (ctrl *UserController) UserProfile(c *gin.Context) {
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Security BearerAuth
-// @Router /user/update [put]
+// @Router /user [put]
 func (ctrl *UserController) UserUpdate(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
 	if !exists {
@@ -179,7 +179,7 @@ func (ctrl *UserController) UserUpdate(c *gin.Context) {
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Security BearerAuth
-// @Router /user/delete [delete]
+// @Router /user [delete]
 func (ctrl *UserController) UserDelete(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
 	if !exists {

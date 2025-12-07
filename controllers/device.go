@@ -114,7 +114,7 @@ func (ctrl *DeviceController) DeviceDelete(c *gin.Context) {
 // @Success 200 {object} models.DeviceListResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Security BearerAuth
-// @Router /devices [get]
+// @Router /device/list [get]
 func (ctrl *DeviceController) DeviceList(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
 	if !exists {

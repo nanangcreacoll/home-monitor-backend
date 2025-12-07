@@ -7,6 +7,7 @@ import (
 	"home-monitor-backend/repositories"
 	"home-monitor-backend/routes"
 	"home-monitor-backend/services"
+	"home-monitor-backend/utils"
 	"log"
 	"os"
 
@@ -26,7 +27,12 @@ import (
 // @name Authorization
 // @description Type "Bearer" followed by a space and JWT token.
 func main() {
-	err := godotenv.Load()
+	envPath := utils.FindDotEnv(3)
+	if envPath == "" {
+		log.Fatal("Could not find .env file")
+	}
+
+	err := godotenv.Load(envPath)
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}

@@ -4,11 +4,62 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
+
+func FindMigrationsDir(levels int) string {
+	const migrationsDirName = "database/migrations"
+
+	if infoPath, err := os.Stat(migrationsDirName); err == nil && infoPath.IsDir() {
+		return migrationsDirName
+	}
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	for range levels {
+		currentDir = filepath.Dir(currentDir)
+		migrationsPath := filepath.Join(currentDir, migrationsDirName)
+		if infoPath, err := os.Stat(migrationsPath); err == nil && infoPath.IsDir() {
+			return migrationsPath
+		}
+	}
+
+	currentDir, err = os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	for range levels {
+		entries, err := os.ReadDir(currentDir)
+		if err != nil {
+			return ""
+		}
+
+		found := false
+		for _, entry := range entries {
+			if entry.IsDir() {
+				migrationsPath := filepath.Join(currentDir, entry.Name(), migrationsDirName)
+				if infoPath, err := os.Stat(migrationsPath); err == nil && infoPath.IsDir() {
+					return migrationsPath
+				}
+			}
+		}
+
+		if !found {
+			break
+		}
+		currentDir = filepath.Dir(currentDir)
+	}
+
+	return ""
+}
 
 func Migrations() {
 	user := os.Getenv("DB_USER")
@@ -20,8 +71,13 @@ func Migrations() {
 	dsn := fmt.Sprintf("mysql://%s:%s@tcp(%s:%s)/%s?multiStatements=true",
 		user, pass, host, port, name)
 
+	migrationsDir := FindMigrationsDir(3)
+	if migrationsDir == "" {
+		log.Fatal("Could not find migrations directory")
+	}
+
 	m, err := migrate.New(
-		"file://database/migrations",
+		"file://"+migrationsDir,
 		dsn,
 	)
 	if err != nil {
@@ -32,5 +88,5 @@ func Migrations() {
 		log.Fatal("Migration failed:", err)
 	}
 
-	fmt.Println("Database migrated")
+	log.Println("Database Migrated")
 }

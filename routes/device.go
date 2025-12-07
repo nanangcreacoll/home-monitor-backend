@@ -12,7 +12,7 @@ func DeviceRoutes(r *gin.Engine, controllers *controllers.DeviceController) {
 	apiAuth.Use(middlewares.Auth())
 	{
 		apiAuth.GET("/list", controllers.DeviceList)
-		apiAuth.POST("/register", controllers.DeviceRegister)
-		apiAuth.DELETE("/delete", controllers.DeviceDelete)
+		apiAuth.POST("/", controllers.DeviceRegister)
+		apiAuth.DELETE("/", controllers.DeviceDelete)
 	}
 }
