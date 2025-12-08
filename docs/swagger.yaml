@@ -18,6 +18,42 @@ definitions:
           $ref: '#/definitions/models.DeviceResponse'
         type: array
     type: object
+  models.DeviceMeasurement:
+    properties:
+      created_at:
+        type: string
+      device_id:
+        type: integer
+      humidity:
+        type: number
+      id:
+        type: integer
+      temperature:
+        type: number
+    type: object
+  models.DeviceMeasurementDeleteRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - ids
+    type: object
+  models.DeviceMeasurementListResponse:
+    properties:
+      measurements:
+        items:
+          $ref: '#/definitions/models.DeviceMeasurement'
+        type: array
+    type: object
+  models.DeviceMeasurementPayload:
+    properties:
+      humidity:
+        type: number
+      temperature:
+        type: number
+    type: object
   models.DeviceResponse:
     properties:
       created_at:
@@ -336,6 +372,51 @@ paths:
       summary: Update device
       tags:
       - devices
+  /device/{uuid}/measurements:
+    post:
+      consumes:
+      - application/json
+      description: Create a new measurement for a device by UUID
+      parameters:
+      - description: Device UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Device measurement payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.DeviceMeasurementPayload'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.DeviceMeasurement'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create device measurement
+      tags:
+      - devices
   /device/list:
     get:
       description: List all devices with optional length and latest parameters
@@ -362,6 +443,93 @@ paths:
       security:
       - BearerAuth: []
       summary: List devices
+      tags:
+      - devices
+  /device/measurements:
+    delete:
+      consumes:
+      - application/json
+      description: Delete measurements for a device by measurement IDs
+      parameters:
+      - description: Device measurement delete request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.DeviceMeasurementDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete device measurements
+      tags:
+      - devices
+    get:
+      description: Get measurements for a device with optional length and latest parameters
+      parameters:
+      - description: Device UUID
+        in: query
+        name: device_uuid
+        type: string
+      - description: Number of measurements to return
+        in: query
+        name: length
+        type: integer
+      - description: Return the latest measurements first
+        in: query
+        name: latest
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DeviceMeasurementListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get device measurements
       tags:
       - devices
   /user:

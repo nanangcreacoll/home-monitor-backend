@@ -47,7 +47,7 @@ func (ctrl *UserController) UserRegister(c *gin.Context) {
 		return
 	}
 
-	user, statusCode, err := ctrl.userService.UserRegister(input, userUUID.(uuid.UUID))
+	user, statusCode, err := ctrl.userService.UserRegister(c, input, userUUID.(uuid.UUID))
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -81,7 +81,7 @@ func (ctrl *UserController) UserLogin(c *gin.Context) {
 		return
 	}
 
-	user, token, statusCode, err := ctrl.userService.UserLogin(input)
+	user, token, statusCode, err := ctrl.userService.UserLogin(c, input)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -111,7 +111,7 @@ func (ctrl *UserController) UserProfile(c *gin.Context) {
 		return
 	}
 
-	user, statusCode, err := ctrl.userService.UserProfile(userUUID.(uuid.UUID))
+	user, statusCode, err := ctrl.userService.UserProfile(c, userUUID.(uuid.UUID))
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -154,7 +154,7 @@ func (ctrl *UserController) UserUpdate(c *gin.Context) {
 		return
 	}
 
-	user, statusCode, err := ctrl.userService.UserUpdate(userUUID.(uuid.UUID), &input)
+	user, statusCode, err := ctrl.userService.UserUpdate(c, userUUID.(uuid.UUID), &input)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -187,7 +187,7 @@ func (ctrl *UserController) UserDelete(c *gin.Context) {
 		return
 	}
 
-	user, statusCode, err := ctrl.userService.UserDelete(userUUID.(uuid.UUID))
+	user, statusCode, err := ctrl.userService.UserDelete(c, userUUID.(uuid.UUID))
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return

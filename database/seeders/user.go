@@ -17,9 +17,7 @@ func UserRun(db *gorm.DB) error {
 
 	users := []models.User{
 		{UUID: uuid.New(), Username: "admin", Password: "password", Role: models.UserRoleAdmin},
-		{UUID: uuid.New(), Username: "admin2", Password: "password2", Role: models.UserRoleAdmin},
 		{UUID: uuid.New(), Username: "user", Password: "password", Role: models.UserRoleUser},
-		{UUID: uuid.New(), Username: "user2", Password: "password2", Role: models.UserRoleUser},
 	}
 
 	for i := range users {

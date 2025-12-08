@@ -45,12 +45,21 @@ type DeviceListResponse struct {
 	Devices []DeviceResponse `json:"devices"`
 }
 
+type DeviceListRequestParams struct {
+	Length int  `form:"length" binding:"omitempty"`
+	Latest bool `form:"latest" binding:"omitempty"`
+}
+
 type DeviceMeasurement struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	DeviceID    uint      `json:"device_id"`
 	Temperature float64   `json:"temperature"`
 	Humidity    float64   `json:"humidity"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+type DeviceMeasurementDeleteRequest struct {
+	IDs []uint `json:"ids" binding:"required,dive,gt=0"`
 }
 
 type DeviceMeasurementPayload struct {
@@ -60,6 +69,12 @@ type DeviceMeasurementPayload struct {
 
 type DeviceMeasurementListResponse struct {
 	Measurements []DeviceMeasurement `json:"measurements"`
+}
+
+type DeviceMeasurementRequestParams struct {
+	Length     int    `form:"length" binding:"omitempty"`
+	DeviceUUID string `form:"device_uuid" binding:"omitempty,uuid"`
+	Latest     bool   `form:"latest" binding:"omitempty"`
 }
 
 func (d *Device) BeforeCreate(tx *gorm.DB) (err error) {

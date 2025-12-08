@@ -16,7 +16,7 @@ func GenerateJWT(userUUID uuid.UUID) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	ExpirationTime := time.Now().Add(time.Duration(Expiration) * time.Minute).Unix()
+	ExpirationTime := time.Now().Add(time.Duration(Expiration) * time.Hour).Unix()
 
 	claim := jwt.MapClaims{
 		"user_uuid": userUUID.String(),

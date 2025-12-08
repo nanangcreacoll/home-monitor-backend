@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"home-monitor-backend/models"
 	"home-monitor-backend/repositories"
@@ -12,11 +13,11 @@ import (
 )
 
 type UserService interface {
-	UserRegister(input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, int, error)
-	UserLogin(input models.UserLoginRequest) (*models.User, string, int, error)
-	UserProfile(userUUID uuid.UUID) (*models.User, int, error)
-	UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error)
-	UserDelete(userUUID uuid.UUID) (*models.User, int, error)
+	UserRegister(ctx context.Context, input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, int, error)
+	UserLogin(ctx context.Context, input models.UserLoginRequest) (*models.User, string, int, error)
+	UserProfile(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error)
+	UserUpdate(ctx context.Context, userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error)
+	UserDelete(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error)
 }
 
 type userService struct {
@@ -28,8 +29,8 @@ func NewUserService(userRepo repositories.UserRepository, deviceRepo repositorie
 	return &userService{userRepo: userRepo, deviceRepo: deviceRepo}
 }
 
-func (s *userService) UserRegister(input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, int, error) {
-	user, err := s.userRepo.UserFindByUUID(userUUID)
+func (s *userService) UserRegister(ctx context.Context, input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, int, error) {
+	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("user not found")
 	}
@@ -38,7 +39,7 @@ func (s *userService) UserRegister(input models.UserRegisterRequest, userUUID uu
 		return nil, http.StatusForbidden, errors.New("only admin can register new users")
 	}
 
-	_, err = s.userRepo.UserFindByUsername(input.Username)
+	_, err = s.userRepo.UserFindByUsername(ctx, input.Username)
 	if err == nil {
 		return nil, http.StatusConflict, errors.New("username already exists")
 	}
@@ -50,14 +51,14 @@ func (s *userService) UserRegister(input models.UserRegisterRequest, userUUID uu
 		Role:     models.UserRoleUser,
 	}
 
-	if err := s.userRepo.UserCreate(newUser); err != nil {
+	if err := s.userRepo.UserCreate(ctx, newUser); err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 	return newUser, http.StatusCreated, nil
 }
 
-func (s *userService) UserLogin(input models.UserLoginRequest) (*models.User, string, int, error) {
-	user, err := s.userRepo.UserFindByUsername(input.Username)
+func (s *userService) UserLogin(ctx context.Context, input models.UserLoginRequest) (*models.User, string, int, error) {
+	user, err := s.userRepo.UserFindByUsername(ctx, input.Username)
 	if err != nil || !user.CheckPassword(input.Password) {
 		return nil, "", http.StatusUnauthorized, errors.New("invalid username or password")
 	}
@@ -69,25 +70,35 @@ func (s *userService) UserLogin(input models.UserLoginRequest) (*models.User, st
 	return user, token, http.StatusOK, nil
 }
 
-func (s *userService) UserProfile(userUUID uuid.UUID) (*models.User, int, error) {
-	user, err := s.userRepo.UserFindByUUID(userUUID)
+func (s *userService) UserProfile(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error) {
+	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 	return user, http.StatusOK, nil
 }
 
-func (s *userService) UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error) {
-	user, err := s.userRepo.UserFindByUUID(userUUID)
+func (s *userService) UserUpdate(ctx context.Context, userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error) {
+	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
 		return user, http.StatusNotFound, errors.New("user not found")
+	}
+
+	if user.Role != models.UserRoleAdmin {
+		if user.Username != userUpdate.Username {
+			return user, http.StatusForbidden, errors.New("only admin can update other users")
+		}
+
+		if !user.CheckPassword(userUpdate.Password) {
+			return user, http.StatusUnauthorized, errors.New("username or password is incorrect")
+		}
 	}
 
 	if userUpdate.Username == "" && userUpdate.Password == "" {
 		return user, http.StatusBadRequest, errors.New("need to provide username or password to update")
 	}
 
-	userToUpdate, err := s.userRepo.UserFindByUsername(userUpdate.Username)
+	userToUpdate, err := s.userRepo.UserFindByUsername(ctx, userUpdate.Username)
 	if err != nil {
 		return user, http.StatusUnauthorized, errors.New("username or password is incorrect")
 	}
@@ -121,11 +132,11 @@ func (s *userService) UserUpdate(userUUID uuid.UUID, userUpdate *models.UserUpda
 		userToUpdate.Role = *userUpdate.Role
 	}
 
-	return userToUpdate, http.StatusOK, s.userRepo.UserUpdate(userToUpdate)
+	return userToUpdate, http.StatusOK, s.userRepo.UserUpdate(ctx, userToUpdate)
 }
 
-func (s *userService) UserDelete(userUUID uuid.UUID) (*models.User, int, error) {
-	user, err := s.userRepo.UserFindByUUID(userUUID)
+func (s *userService) UserDelete(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error) {
+	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("user not found")
 	}
@@ -136,12 +147,12 @@ func (s *userService) UserDelete(userUUID uuid.UUID) (*models.User, int, error) 
 		return nil, http.StatusForbidden, errors.New("admin cannot delete their own account")
 	}
 
-	deviceUser, err := s.deviceRepo.DeviceFindByUserID(user.ID)
+	deviceUser, err := s.deviceRepo.DeviceFindByUserID(ctx, user.ID)
 	if err == nil && len(deviceUser) > 0 {
 		return nil, http.StatusForbidden, errors.New("cannot delete user with associated devices")
 	}
 
-	if err := s.userRepo.UserDelete(user); err != nil {
+	if err := s.userRepo.UserDelete(ctx, user); err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 	return user, http.StatusOK, nil

@@ -54,7 +54,7 @@ func DeviceMeasurementRun(db *gorm.DB) error {
 			Humidity:    58.0,
 		},
 		{
-			DeviceID:    2,
+			DeviceID:    1,
 			Temperature: 24.5,
 			Humidity:    65.0,
 		},

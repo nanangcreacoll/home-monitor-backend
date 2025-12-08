@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"context"
 	"encoding/json"
 	"home-monitor-backend/models"
 	"home-monitor-backend/repositories"
@@ -19,6 +20,8 @@ const (
 )
 
 func DeviceMainTask() {
+	ctx := context.Background()
+
 	err := MqttSubscribe(DeviceTopic)
 	if err != nil {
 		log.Fatalf("Failed to subscribe to MQTT topic: %v", err)
@@ -50,7 +53,7 @@ func DeviceMainTask() {
 			continue
 		}
 
-		device, err := deviceRepo.DeviceFindByUUID(uuidParsed)
+		device, err := deviceRepo.DeviceFindByUUID(ctx, uuidParsed)
 		if err != nil {
 			log.Printf("Error finding device by UUID %s: %v", deviceUUID, err)
 			continue
@@ -69,7 +72,7 @@ func DeviceMainTask() {
 			Humidity:    payload.Humidity,
 		}
 
-		err = deviceRepo.DeviceMeasurementCreate(measurement)
+		err = deviceRepo.DeviceMeasurementCreate(ctx, measurement)
 		if err != nil {
 			log.Printf("Error creating measurement for device %s: %v", deviceUUID, err)
 			continue

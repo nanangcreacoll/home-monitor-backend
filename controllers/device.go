@@ -4,7 +4,6 @@ import (
 	"home-monitor-backend/models"
 	"home-monitor-backend/services"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -51,7 +50,7 @@ func (ctrl *DeviceController) DeviceRegister(c *gin.Context) {
 		Name:       input.Name,
 	}
 
-	createdDevice, statusCode, err := ctrl.deviceService.DeviceRegister(userUUID.(uuid.UUID), device)
+	createdDevice, statusCode, err := ctrl.deviceService.DeviceRegister(c, userUUID.(uuid.UUID), device)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -99,7 +98,7 @@ func (ctrl *DeviceController) DeviceDelete(c *gin.Context) {
 		UUID: deviceUUID,
 	}
 
-	statusCode, err := ctrl.deviceService.DeviceDelete(deviceDeleteRequest.UUID, userUUID.(uuid.UUID))
+	statusCode, err := ctrl.deviceService.DeviceDelete(c, userUUID.(uuid.UUID), deviceDeleteRequest.UUID)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -126,20 +125,13 @@ func (ctrl *DeviceController) DeviceList(c *gin.Context) {
 		return
 	}
 
-	lengthParam := c.DefaultQuery("length", "0")
-	latestParam := c.DefaultQuery("latest", "false")
-
-	length := 0
-	if l, err := strconv.Atoi(lengthParam); err == nil && l > 0 {
-		length = l
+	var requestParams models.DeviceListRequestParams
+	if err := c.ShouldBindQuery(&requestParams); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		return
 	}
 
-	latest := false
-	if latestParam == "true" {
-		latest = true
-	}
-
-	devices, statusCode, err := ctrl.deviceService.DeviceList(userUUID.(uuid.UUID), length, latest)
+	devices, statusCode, err := ctrl.deviceService.DeviceList(c, userUUID.(uuid.UUID), &requestParams)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -186,7 +178,39 @@ func (ctrl *DeviceController) DeviceProfile(c *gin.Context) {
 		return
 	}
 
-	device, statusCode, err := ctrl.deviceService.DeviceProfile(userUUID.(uuid.UUID), deviceUUID)
+	device, statusCode, err := ctrl.deviceService.DeviceProfile(c, userUUID.(uuid.UUID), deviceUUID)
+	if err != nil {
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(statusCode, models.DeviceResponse{
+		UUID:          device.UUID,
+		MacAddress:    device.MacAddress,
+		Name:          device.Name,
+		UserCreatedID: device.UserCreatedID,
+		CreatedAt:     device.CreatedAt,
+		UpdatedAt:     device.UpdatedAt,
+	})
+}
+
+// DeviceProfileByMacAddress godoc
+// @Summary Get device profile by MAC address
+// @Description Get the profile of a device by MAC address
+// @Tags devices
+// @Produce json
+// @Param mac_address path string true "MAC Address"
+// @Success 200 {object} models.DeviceResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
+// @Router /device/profile-by-mac [get]
+func (ctrl *DeviceController) DeviceProfileByMacAddress(c *gin.Context) {
+	macAddress := c.Param("mac_address")
+
+	device, statusCode, err := ctrl.deviceService.DeviceProfileByMacAddress(c, macAddress)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -238,7 +262,7 @@ func (ctrl *DeviceController) DeviceUpdate(c *gin.Context) {
 		return
 	}
 
-	updatedDevice, statusCode, err := ctrl.deviceService.DeviceUpdate(userUUID.(uuid.UUID), deviceUUID, &input)
+	updatedDevice, statusCode, err := ctrl.deviceService.DeviceUpdate(c, userUUID.(uuid.UUID), deviceUUID, &input)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
@@ -252,4 +276,122 @@ func (ctrl *DeviceController) DeviceUpdate(c *gin.Context) {
 		CreatedAt:     updatedDevice.CreatedAt,
 		UpdatedAt:     updatedDevice.UpdatedAt,
 	})
+}
+
+// DeviceMeasurements godoc
+// @Summary Get device measurements
+// @Description Get measurements for a device with optional length and latest parameters
+// @Tags devices
+// @Produce json
+// @Param device_uuid query string false "Device UUID"
+// @Param length query int false "Number of measurements to return"
+// @Param latest query bool false "Return the latest measurements first"
+// @Success 200 {object} models.DeviceMeasurementListResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
+// @Router /device/measurements [get]
+func (ctrl *DeviceController) DeviceMeasurements(c *gin.Context) {
+	userUUID, exists := c.Get("userUUID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
+		return
+	}
+
+	var requestParams models.DeviceMeasurementRequestParams
+	if err := c.ShouldBindQuery(&requestParams); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	measurements, statusCode, err := ctrl.deviceService.DeviceMeasurements(c, userUUID.(uuid.UUID), &requestParams)
+	if err != nil {
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(statusCode, measurements)
+}
+
+// DeviceCreateMeasurement godoc
+// @Summary Create device measurement
+// @Description Create a new measurement for a device by UUID
+// @Tags devices
+// @Accept json
+// @Produce json
+// @Param uuid path string true "Device UUID"
+// @Param request body models.DeviceMeasurementPayload true "Device measurement payload"
+// @Success 201 {object} models.DeviceMeasurement
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
+// @Router /device/{uuid}/measurements [post]
+func (ctrl *DeviceController) DeviceCreateMeasurement(c *gin.Context) {
+	userUUID, exists := c.Get("userUUID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
+		return
+	}
+
+	deviceUUIDParam := c.Param("uuid")
+	deviceUUID, err := uuid.Parse(deviceUUIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "Invalid device UUID"})
+		return
+	}
+
+	var input models.DeviceMeasurementPayload
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	createdMeasurement, err := ctrl.deviceService.DeviceCreateMeasurement(c, userUUID.(uuid.UUID), deviceUUID, &input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, createdMeasurement)
+}
+
+// DeviceDeleteMeasurements godoc
+// @Summary Delete device measurements
+// @Description Delete measurements for a device by measurement IDs
+// @Tags devices
+// @Accept json
+// @Produce json
+// @Param request body models.DeviceMeasurementDeleteRequest true "Device measurement delete request"
+// @Success 200 {object} models.ResponseMessage
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
+// @Router /device/measurements [delete]
+func (ctrl *DeviceController) DeviceDeleteMeasurements(c *gin.Context) {
+	userUUID, exists := c.Get("userUUID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
+		return
+	}
+
+	var input models.DeviceMeasurementDeleteRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	statusCode, err := ctrl.deviceService.DeviceDeleteMeasurements(c, userUUID.(uuid.UUID), input.IDs)
+	if err != nil {
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(statusCode, models.ResponseMessage{Message: "Device measurements deleted successfully"})
 }
