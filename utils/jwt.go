@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"os"
 	"strconv"
 	"time"
@@ -10,6 +12,15 @@ import (
 )
 
 var JWTSecret = os.Getenv("JWT_SECRET")
+
+func GenerateSecretJWT() (string, error) {
+	key := make([]byte, 64)
+	_, err := rand.Read(key)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(key), nil
+}
 
 func GenerateJWT(userUUID uuid.UUID) (string, error) {
 	Expiration, err := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))

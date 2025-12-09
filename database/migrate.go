@@ -90,3 +90,34 @@ func Migrations() {
 
 	log.Println("Database Migrated")
 }
+
+func MigrateDown() error {
+	user := os.Getenv("DB_USER")
+	pass := os.Getenv("DB_PASSWORD")
+	host := os.Getenv("DB_HOST")
+	port := os.Getenv("DB_PORT")
+	name := os.Getenv("DB_NAME")
+
+	dsn := fmt.Sprintf("mysql://%s:%s@tcp(%s:%s)/%s?multiStatements=true",
+		user, pass, host, port, name)
+
+	migrationsDir := FindMigrationsDir(3)
+	if migrationsDir == "" {
+		return fmt.Errorf("could not find migrations directory")
+	}
+
+	m, err := migrate.New(
+		"file://"+migrationsDir,
+		dsn,
+	)
+	if err != nil {
+		return fmt.Errorf("migration setup failed: %v", err)
+	}
+
+	if err := m.Down(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("migration down failed: %v", err)
+	}
+
+	log.Println("Database Migration Down completed")
+	return nil
+}

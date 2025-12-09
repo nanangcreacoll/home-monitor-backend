@@ -25,7 +25,11 @@ type ResultStatus int
 
 const (
 	ResultStatusSuccess ResultStatus = iota
-	ResultStatusError
+	ResultStatusInvalidUUID
+	ResultStatusInvalidToken
+	ResultStatusInvalidDevice
+	ResultStatusInvalidPayload
+	ResultStatusFailedDatabase
 )
 
 func DeviceMainTask() {
@@ -67,7 +71,7 @@ func DeviceMainTask() {
 			log.Printf("Invalid token for device %s: %v", deviceStrUUID, err)
 
 			response := models.DeviceMeasurementMqttResponse{
-				Result: -ResultStatusError,
+				Result: -ResultStatusInvalidToken,
 			}
 			responseJson, _ := json.Marshal(response)
 			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
@@ -83,7 +87,7 @@ func DeviceMainTask() {
 			log.Printf("Error parsing device UUID %s: %v", deviceStrUUID, err)
 
 			response := models.DeviceMeasurementMqttResponse{
-				Result: -ResultStatusError,
+				Result: -ResultStatusInvalidUUID,
 			}
 			responseJson, _ := json.Marshal(response)
 			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
@@ -99,7 +103,7 @@ func DeviceMainTask() {
 			log.Printf("Error finding device by UUID %s: %v", deviceStrUUID, err)
 
 			response := models.DeviceMeasurementMqttResponse{
-				Result: -ResultStatusError,
+				Result: -ResultStatusInvalidUUID,
 			}
 			responseJson, _ := json.Marshal(response)
 			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
@@ -114,7 +118,7 @@ func DeviceMainTask() {
 			log.Printf("Token UUID does not match device UUID for device %s", deviceStrUUID)
 
 			response := models.DeviceMeasurementMqttResponse{
-				Result: -ResultStatusError,
+				Result: -ResultStatusInvalidDevice,
 			}
 			responseJson, _ := json.Marshal(response)
 			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
@@ -131,7 +135,7 @@ func DeviceMainTask() {
 			log.Printf("Error unmarshaling payload for device %s: %v", deviceStrUUID, err)
 
 			response := models.DeviceMeasurementMqttResponse{
-				Result: -ResultStatusError,
+				Result: -ResultStatusInvalidPayload,
 			}
 			responseJson, _ := json.Marshal(response)
 			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
@@ -153,7 +157,7 @@ func DeviceMainTask() {
 			log.Printf("Error creating measurement for device %s: %v", deviceUUID, err)
 
 			response := models.DeviceMeasurementMqttResponse{
-				Result: -ResultStatusError,
+				Result: -ResultStatusFailedDatabase,
 			}
 			responseJson, _ := json.Marshal(response)
 			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
