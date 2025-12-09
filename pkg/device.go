@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"home-monitor-backend/models"
 	"home-monitor-backend/repositories"
+	"home-monitor-backend/utils"
 	"log"
 	"strings"
 	"time"
@@ -16,7 +17,15 @@ var DeviceMessageQueue Queue
 var deviceRepo repositories.DeviceRepository
 
 const (
-	DeviceTopic = "req/device/#"
+	DeviceTopic       = "req/device/#"
+	DeviceResultTopic = "res/device"
+)
+
+type ResultStatus int
+
+const (
+	ResultStatusSuccess ResultStatus = iota
+	ResultStatusError
 )
 
 func DeviceMainTask() {
@@ -36,33 +45,100 @@ func DeviceMainTask() {
 
 		msg := DeviceMessageQueue.Pop().(MqttMessage)
 
-		if len(strings.Split(msg.Topic, "/")) < 3 {
+		if len(strings.Split(msg.Topic, "/")) < 4 {
 			log.Printf("Invalid topic format: %s", msg.Topic)
 			continue
 		}
 
-		deviceUUID := strings.Split(msg.Topic, "/")[2]
-		if deviceUUID == "" {
+		deviceStrUUID := strings.Split(msg.Topic, "/")[2]
+		if deviceStrUUID == "" {
 			log.Printf("Empty device UUID in topic: %s", msg.Topic)
 			continue
 		}
 
-		uuidParsed, err := uuid.Parse(deviceUUID)
-		if err != nil {
-			log.Printf("Error parsing device UUID %s: %v", deviceUUID, err)
+		token := strings.Split(msg.Topic, "/")[3]
+		if token == "" {
+			log.Printf("Empty token in topic: %s", msg.Topic)
 			continue
 		}
 
-		device, err := deviceRepo.DeviceFindByUUID(ctx, uuidParsed)
+		deviceValidateUUID, err := utils.ValidateDeviceJWT(token)
 		if err != nil {
-			log.Printf("Error finding device by UUID %s: %v", deviceUUID, err)
+			log.Printf("Invalid token for device %s: %v", deviceStrUUID, err)
+
+			response := models.DeviceMeasurementMqttResponse{
+				Result: -ResultStatusError,
+			}
+			responseJson, _ := json.Marshal(response)
+			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
+			if err != nil {
+				log.Printf("Failed to publish MQTT response for device %s: %v", deviceStrUUID, err)
+			}
+
+			continue
+		}
+
+		deviceUUID, err := uuid.Parse(deviceStrUUID)
+		if err != nil {
+			log.Printf("Error parsing device UUID %s: %v", deviceStrUUID, err)
+
+			response := models.DeviceMeasurementMqttResponse{
+				Result: -ResultStatusError,
+			}
+			responseJson, _ := json.Marshal(response)
+			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
+			if err != nil {
+				log.Printf("Failed to publish MQTT response for device %s: %v", deviceStrUUID, err)
+			}
+
+			continue
+		}
+
+		device, err := deviceRepo.DeviceFindByUUID(ctx, deviceUUID)
+		if err != nil {
+			log.Printf("Error finding device by UUID %s: %v", deviceStrUUID, err)
+
+			response := models.DeviceMeasurementMqttResponse{
+				Result: -ResultStatusError,
+			}
+			responseJson, _ := json.Marshal(response)
+			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
+			if err != nil {
+				log.Printf("Failed to publish MQTT response for device %s: %v", deviceStrUUID, err)
+			}
+
+			continue
+		}
+
+		if device.UUID != deviceValidateUUID {
+			log.Printf("Token UUID does not match device UUID for device %s", deviceStrUUID)
+
+			response := models.DeviceMeasurementMqttResponse{
+				Result: -ResultStatusError,
+			}
+			responseJson, _ := json.Marshal(response)
+			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
+			if err != nil {
+				log.Printf("Failed to publish MQTT response for device %s: %v", deviceStrUUID, err)
+			}
+
 			continue
 		}
 
 		var payload models.DeviceMeasurementPayload
 		err = json.Unmarshal(msg.Payload, &payload)
 		if err != nil {
-			log.Printf("Error unmarshaling payload for device %s: %v", deviceUUID, err)
+			log.Printf("Error unmarshaling payload for device %s: %v", deviceStrUUID, err)
+
+			response := models.DeviceMeasurementMqttResponse{
+				Result: -ResultStatusError,
+			}
+			responseJson, _ := json.Marshal(response)
+			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
+			if err != nil {
+				log.Printf("Failed to publish MQTT response for device %s: %v", deviceStrUUID, err)
+			}
+
 			continue
 		}
 
@@ -75,7 +151,26 @@ func DeviceMainTask() {
 		err = deviceRepo.DeviceMeasurementCreate(ctx, measurement)
 		if err != nil {
 			log.Printf("Error creating measurement for device %s: %v", deviceUUID, err)
+
+			response := models.DeviceMeasurementMqttResponse{
+				Result: -ResultStatusError,
+			}
+			responseJson, _ := json.Marshal(response)
+			err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
+			if err != nil {
+				log.Printf("Failed to publish MQTT response for device %s: %v", deviceStrUUID, err)
+			}
+
 			continue
+		}
+
+		response := models.DeviceMeasurementMqttResponse{
+			Result: ResultStatusSuccess,
+		}
+		responseJson, _ := json.Marshal(response)
+		err = MqttPublish(DeviceResultTopic+"/"+deviceStrUUID+"/"+token, responseJson)
+		if err != nil {
+			log.Printf("Failed to publish MQTT response for device %s: %v", deviceStrUUID, err)
 		}
 
 		time.Sleep(100 * time.Millisecond)

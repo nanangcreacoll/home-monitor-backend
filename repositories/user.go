@@ -16,6 +16,7 @@ type UserRepository interface {
 	UserCreate(ctx context.Context, user *models.User) error
 	UserUpdate(ctx context.Context, user *models.User) error
 	UserDelete(ctx context.Context, user *models.User) error
+	UserList(ctx context.Context, length int) ([]models.User, error)
 }
 
 type userRepository struct {
@@ -25,6 +26,8 @@ type userRepository struct {
 func NewUserRepository() UserRepository {
 	return &userRepository{db: database.DB}
 }
+
+const defaultUserListLimit = 50
 
 func (r *userRepository) UserFindByUsername(ctx context.Context, username string) (*models.User, error) {
 	var user models.User
@@ -60,4 +63,18 @@ func (r *userRepository) UserUpdate(ctx context.Context, user *models.User) erro
 
 func (r *userRepository) UserDelete(ctx context.Context, user *models.User) error {
 	return r.db.Delete(user).Error
+}
+
+func (r *userRepository) UserList(ctx context.Context, length int) ([]models.User, error) {
+	var users []models.User
+	query := r.db.WithContext(ctx)
+	if length > 0 {
+		query = query.Limit(length)
+	} else {
+		query = query.Limit(defaultUserListLimit)
+	}
+	if err := query.Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
 }

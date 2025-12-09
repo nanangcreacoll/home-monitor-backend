@@ -27,6 +27,22 @@ func GenerateJWT(userUUID uuid.UUID) (string, error) {
 	return token.SignedString([]byte(JWTSecret))
 }
 
+func GenerateDeviceJWT(deviceUUID uuid.UUID) (string, error) {
+	Expiration, err := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
+	if err != nil {
+		return "", err
+	}
+	ExpirationTime := time.Now().Add(time.Duration(Expiration) * time.Hour).Unix()
+
+	claim := jwt.MapClaims{
+		"device_uuid": deviceUUID.String(),
+		"exp":         ExpirationTime,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
+	return token.SignedString([]byte(JWTSecret))
+}
+
 func ValidateJWT(tokenString string) (uuid.UUID, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		return []byte(JWTSecret), nil
@@ -38,6 +54,22 @@ func ValidateJWT(tokenString string) (uuid.UUID, error) {
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		return uuid.Parse(claims["user_uuid"].(string))
+	}
+
+	return uuid.Nil, err
+}
+
+func ValidateDeviceJWT(tokenString string) (uuid.UUID, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+		return []byte(JWTSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return uuid.Nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return uuid.Parse(claims["device_uuid"].(string))
 	}
 
 	return uuid.Nil, err

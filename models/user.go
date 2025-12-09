@@ -64,6 +64,10 @@ type UserUpdateRequest struct {
 	Role        *UserRole `json:"role" binding:"omitempty,oneof=1 2"`
 }
 
+type UserListResponse struct {
+	Users []UserProfileResponse `json:"users" validate:"dive"`
+}
+
 func (u *User) HashPassword() error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {

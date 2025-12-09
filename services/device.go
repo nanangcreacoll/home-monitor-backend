@@ -13,10 +13,10 @@ import (
 
 type DeviceService interface {
 	DeviceRegister(ctx context.Context, userUUID uuid.UUID, device *models.Device) (*models.Device, int, error)
+	DeviceLogin(ctx context.Context, deviceLoginRequest *models.DeviceLoginRequest) (*models.Device, string, int, error)
 	DeviceDelete(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID) (int, error)
 	DeviceList(ctx context.Context, userUUID uuid.UUID, requestParams *models.DeviceListRequestParams) ([]models.Device, int, error)
 	DeviceProfile(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID) (*models.Device, int, error)
-	DeviceProfileByMacAddress(ctx context.Context, macAddress string) (*models.Device, int, error)
 	DeviceUpdate(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID, deviceUpdate *models.DeviceUpdateRequest) (*models.Device, int, error)
 	DeviceMeasurements(ctx context.Context, userUUID uuid.UUID, requestParams *models.DeviceMeasurementRequestParams) ([]models.DeviceMeasurement, int, error)
 	DeviceCreateMeasurement(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID, payload *models.DeviceMeasurementPayload) (*models.DeviceMeasurement, error)
@@ -53,6 +53,20 @@ func (s *deviceService) DeviceRegister(ctx context.Context, userUUID uuid.UUID, 
 	}
 
 	return device, http.StatusCreated, nil
+}
+
+func (s *deviceService) DeviceLogin(ctx context.Context, deviceLoginRequest *models.DeviceLoginRequest) (*models.Device, string, int, error) {
+	device, err := s.deviceRepo.DeviceFindByMacAddress(ctx, deviceLoginRequest.MacAddress)
+	if err != nil {
+		return nil, "", http.StatusNotFound, errors.New("device not found")
+	}
+
+	token, err := utils.GenerateDeviceJWT(device.UUID)
+	if err != nil {
+		return nil, "", http.StatusInternalServerError, errors.New("failed to generate token")
+	}
+
+	return device, token, http.StatusOK, nil
 }
 
 func (s *deviceService) DeviceDelete(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID) (int, error) {
@@ -139,23 +153,6 @@ func (s *deviceService) DeviceUpdate(ctx context.Context, userUUID uuid.UUID, de
 	}
 
 	return &updatedDevice, http.StatusOK, nil
-}
-
-func (s *deviceService) DeviceProfileByMacAddress(ctx context.Context, macAddress string) (*models.Device, int, error) {
-	if macAddress == "" {
-		return nil, http.StatusBadRequest, errors.New("mac address cannot be empty")
-	}
-
-	if !utils.IsValidMacAddress(macAddress) {
-		return nil, http.StatusBadRequest, errors.New("invalid mac address")
-	}
-
-	device, err := s.deviceRepo.DeviceFindByMacAddress(ctx, macAddress)
-	if err != nil {
-		return nil, http.StatusNotFound, errors.New("device not found")
-	}
-
-	return device, http.StatusOK, nil
 }
 
 func (s *deviceService) DeviceMeasurements(ctx context.Context, userUUID uuid.UUID, requestParams *models.DeviceMeasurementRequestParams) ([]models.DeviceMeasurement, int, error) {

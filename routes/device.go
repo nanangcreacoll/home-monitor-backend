@@ -8,10 +8,12 @@ import (
 )
 
 func DeviceRoutes(r *gin.Engine, controllers *controllers.DeviceController) {
+	api := r.Group("/api/device")
+	{
+		api.POST("/login", controllers.DeviceLogin)
+	}
+
 	apiAuth := r.Group("/api/device")
-
-	apiAuth.GET("/mac/:mac_address", controllers.DeviceProfileByMacAddress)
-
 	apiAuth.Use(middlewares.Auth())
 	{
 		apiAuth.POST("/", controllers.DeviceRegister)

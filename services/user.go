@@ -18,6 +18,7 @@ type UserService interface {
 	UserProfile(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error)
 	UserUpdate(ctx context.Context, userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error)
 	UserDelete(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error)
+	UserList(ctx context.Context, userUUID uuid.UUID, length int) ([]models.User, int, error)
 }
 
 type userService struct {
@@ -156,4 +157,21 @@ func (s *userService) UserDelete(ctx context.Context, userUUID uuid.UUID) (*mode
 		return nil, http.StatusInternalServerError, err
 	}
 	return user, http.StatusOK, nil
+}
+
+func (s *userService) UserList(ctx context.Context, userUUID uuid.UUID, length int) ([]models.User, int, error) {
+	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("user not found")
+	}
+
+	if user.Role != models.UserRoleAdmin {
+		return nil, http.StatusForbidden, errors.New("only admin can list users")
+	}
+
+	users, err := s.userRepo.UserList(ctx, length)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return users, http.StatusOK, nil
 }

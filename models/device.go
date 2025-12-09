@@ -18,6 +18,15 @@ type Device struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+type DeviceLoginRequest struct {
+	MacAddress string `json:"mac_address" binding:"required,mac"`
+}
+
+type DeviceLoginResponse struct {
+	UUID  uuid.UUID `json:"uuid"`
+	Token string    `json:"token"`
+}
+
 type DeviceCreateRequest struct {
 	Name       string `json:"name" binding:"required,lte=255"`
 	MacAddress string `json:"mac_address" binding:"required,mac"`
@@ -75,6 +84,10 @@ type DeviceMeasurementRequestParams struct {
 	Length     int    `form:"length" binding:"omitempty"`
 	DeviceUUID string `form:"device_uuid" binding:"omitempty,uuid"`
 	Latest     bool   `form:"latest" binding:"omitempty"`
+}
+
+type DeviceMeasurementMqttResponse struct {
+	Result any `json:"result"`
 }
 
 func (d *Device) BeforeCreate(tx *gorm.DB) (err error) {

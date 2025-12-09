@@ -66,6 +66,37 @@ func (ctrl *DeviceController) DeviceRegister(c *gin.Context) {
 	})
 }
 
+// DeviceLogin godoc
+// @Summary Device login
+// @Description Authenticate device and return JWT token
+// @Tags devices
+// @Accept json
+// @Produce json
+// @Param request body models.DeviceLoginRequest true "Device login request"
+// @Success 200 {object} models.DeviceLoginResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /device/login [post]
+func (ctrl *DeviceController) DeviceLogin(c *gin.Context) {
+	var input models.DeviceLoginRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	device, token, statusCode, err := ctrl.deviceService.DeviceLogin(c, &input)
+	if err != nil {
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(statusCode, models.DeviceLoginResponse{
+		UUID:  device.UUID,
+		Token: token,
+	})
+}
+
 // DeviceDelete godoc
 // @Summary Delete a device
 // @Description Delete a device by UUID
@@ -179,38 +210,6 @@ func (ctrl *DeviceController) DeviceProfile(c *gin.Context) {
 	}
 
 	device, statusCode, err := ctrl.deviceService.DeviceProfile(c, userUUID.(uuid.UUID), deviceUUID)
-	if err != nil {
-		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
-		return
-	}
-
-	c.JSON(statusCode, models.DeviceResponse{
-		UUID:          device.UUID,
-		MacAddress:    device.MacAddress,
-		Name:          device.Name,
-		UserCreatedID: device.UserCreatedID,
-		CreatedAt:     device.CreatedAt,
-		UpdatedAt:     device.UpdatedAt,
-	})
-}
-
-// DeviceProfileByMacAddress godoc
-// @Summary Get device profile by MAC address
-// @Description Get the profile of a device by MAC address
-// @Tags devices
-// @Produce json
-// @Param mac_address path string true "MAC Address"
-// @Success 200 {object} models.DeviceResponse
-// @Failure 400 {object} models.ErrorResponse
-// @Failure 401 {object} models.ErrorResponse
-// @Failure 404 {object} models.ErrorResponse
-// @Failure 500 {object} models.ErrorResponse
-// @Security BearerAuth
-// @Router /device/profile-by-mac [get]
-func (ctrl *DeviceController) DeviceProfileByMacAddress(c *gin.Context) {
-	macAddress := c.Param("mac_address")
-
-	device, statusCode, err := ctrl.deviceService.DeviceProfileByMacAddress(c, macAddress)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return
