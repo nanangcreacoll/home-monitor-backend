@@ -43,6 +43,10 @@ type UserRegisterResponse struct {
 	UpdatedAt time.Time `json:"updated_at" validate:"required"`
 }
 
+type UserDeleteRequest struct {
+	UUID uuid.UUID `json:"uuid" binding:"required,uuid"`
+}
+
 type UserLoginResponse struct {
 	UUID     uuid.UUID `json:"uuid" validate:"required,uuid"`
 	Username string    `json:"username" validate:"required,lte=255"`

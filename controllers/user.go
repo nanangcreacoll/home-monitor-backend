@@ -188,7 +188,19 @@ func (ctrl *UserController) UserDelete(c *gin.Context) {
 		return
 	}
 
-	user, statusCode, err := ctrl.userService.UserDelete(c, userUUID.(uuid.UUID))
+	var input models.UserDeleteRequest
+	if err := c.ShouldBindJSON(&input); err != nil && err.Error() != "EOF" {
+		errors := utils.ValidationError(err)
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
+		return
+	}
+
+	deleteUUID := uuid.Nil
+	if input.UUID != uuid.Nil {
+		deleteUUID = input.UUID
+	}
+
+	user, statusCode, err := ctrl.userService.UserDelete(c, userUUID.(uuid.UUID), deleteUUID)
 	if err != nil {
 		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
 		return

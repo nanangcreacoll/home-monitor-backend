@@ -17,7 +17,7 @@ type UserService interface {
 	UserLogin(ctx context.Context, input models.UserLoginRequest) (*models.User, string, int, error)
 	UserProfile(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error)
 	UserUpdate(ctx context.Context, userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error)
-	UserDelete(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error)
+	UserDelete(ctx context.Context, userUUID uuid.UUID, deleteUUID uuid.UUID) (*models.User, int, error)
 	UserList(ctx context.Context, userUUID uuid.UUID, length int) ([]models.User, int, error)
 }
 
@@ -113,6 +113,11 @@ func (s *userService) UserUpdate(ctx context.Context, userUUID uuid.UUID, userUp
 	}
 
 	if userUpdate.NewUsername != "" {
+		existingUser, err := s.userRepo.UserFindByUsername(ctx, userUpdate.NewUsername)
+		if err == nil && existingUser.UUID != userToUpdate.UUID {
+			return user, http.StatusConflict, errors.New("username already exists")
+		}
+
 		userToUpdate.Username = userUpdate.NewUsername
 	}
 
@@ -136,21 +141,25 @@ func (s *userService) UserUpdate(ctx context.Context, userUUID uuid.UUID, userUp
 	return userToUpdate, http.StatusOK, s.userRepo.UserUpdate(ctx, userToUpdate)
 }
 
-func (s *userService) UserDelete(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error) {
+func (s *userService) UserDelete(ctx context.Context, userUUID uuid.UUID, deleteUUID uuid.UUID) (*models.User, int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 
-	if user.Role != models.UserRoleAdmin {
-		return nil, http.StatusForbidden, errors.New("only admin can delete users")
-	} else if user.Role == models.UserRoleAdmin {
-		return nil, http.StatusForbidden, errors.New("admin cannot delete their own account")
+	if deleteUUID != uuid.Nil && deleteUUID != userUUID && user.Role != models.UserRoleAdmin {
+		return nil, http.StatusForbidden, errors.New("only admin can delete other users")
 	}
 
 	deviceUser, err := s.deviceRepo.DeviceFindByUserID(ctx, user.ID)
 	if err == nil && len(deviceUser) > 0 {
-		return nil, http.StatusForbidden, errors.New("cannot delete user with associated devices")
+		for _, device := range deviceUser {
+			device.UserCreatedID = nil
+			_, err := s.deviceRepo.DeviceUpdate(ctx, &device)
+			if err != nil {
+				return nil, http.StatusInternalServerError, errors.New("failed to update device ownership")
+			}
+		}
 	}
 
 	if err := s.userRepo.UserDelete(ctx, user); err != nil {

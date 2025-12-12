@@ -13,7 +13,7 @@ type Device struct {
 	UUID          uuid.UUID `gorm:"unique" json:"uuid" validate:"required,uuid"`
 	Name          string    `gorm:"unique" json:"name"`
 	MacAddress    string    `gorm:"unique" json:"mac_address"`
-	UserCreatedID uint      `json:"user_created_id"`
+	UserCreatedID *uint     `json:"user_created_id"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
@@ -45,7 +45,7 @@ type DeviceResponse struct {
 	UUID          uuid.UUID `json:"uuid"`
 	Name          string    `json:"name"`
 	MacAddress    string    `json:"mac_address"`
-	UserCreatedID uint      `json:"user_created_id"`
+	UserCreatedID *uint     `json:"user_created_id"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
@@ -103,7 +103,7 @@ func (d *Device) BeforeCreate(tx *gorm.DB) (err error) {
 		return errors.New("mac address is required")
 	}
 
-	if d.UserCreatedID == 0 {
+	if d.UserCreatedID == nil {
 		return errors.New("user_created_id is required")
 	}
 

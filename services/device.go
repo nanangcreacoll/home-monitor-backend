@@ -47,7 +47,7 @@ func (s *deviceService) DeviceRegister(ctx context.Context, userUUID uuid.UUID, 
 		return nil, http.StatusConflict, errors.New("device with this MAC address already exists")
 	}
 
-	device.UserCreatedID = user.ID
+	device.UserCreatedID = &user.ID
 	if err := s.deviceRepo.DeviceCreate(ctx, device); err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
