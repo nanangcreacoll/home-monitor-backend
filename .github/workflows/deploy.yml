@@ -53,8 +53,10 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
+          elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
             echo "version=${GITHUB_REF#refs/heads/release/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and push image
@@ -64,7 +66,6 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
-            ghcr.io/${{ env.IMAGE_NAME }}:latest
 
   release:
     runs-on: ubuntu-latest
@@ -79,8 +80,10 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
+          elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
             echo "version=${GITHUB_REF#refs/heads/release/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
