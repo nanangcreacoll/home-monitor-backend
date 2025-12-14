@@ -50,7 +50,7 @@ func main() {
 
 	envPath := utils.FindDotEnv(3)
 	if envPath == "" {
-		log.Fatal("Could not find .env file")
+		log.Println("Could not find .env file")
 	}
 
 	if os.Args[len(os.Args)-1] == string(GenerateSecretJWT) || os.Args[len(os.Args)-1] == string(GenerateSecretJWTShort) {
@@ -83,9 +83,11 @@ func main() {
 		return
 	}
 
-	err := godotenv.Load(envPath)
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if envPath != "" {
+		err := godotenv.Load(envPath)
+		if err != nil {
+			log.Fatalf("Error loading .env file: %v", err)
+		}
 	}
 
 	database.ConnectDB()
@@ -135,7 +137,7 @@ func main() {
 	docs.SwaggerInfo.BasePath = "/api"
 	r.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
-	err = pkg.MqttInit()
+	err := pkg.MqttInit()
 	if err != nil {
 		log.Fatalf("Failed to initialize MQTT client: %v", err)
 	}

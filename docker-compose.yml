@@ -14,8 +14,17 @@ services:
       emqx:
         condition: service_started
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      - GIN_MODE=${GIN_MODE}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - MQTT_BROKER=${MQTT_BROKER}
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - MQTT_CLIENT_ID=${MQTT_CLIENT_ID}
     networks:
       - home-monitor-network
 
@@ -30,6 +39,11 @@ services:
       - db-data:/var/lib/mysql
     networks:
       - home-monitor-network
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
