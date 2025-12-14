@@ -11,7 +11,6 @@ WORKDIR /app
 
 COPY --from=build /build/app /main
 COPY --from=build /build/database/migrations /app/database/migrations
-COPY .env /app/.env
 
 EXPOSE 8080
 
