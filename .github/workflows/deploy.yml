@@ -33,7 +33,7 @@ jobs:
     needs: test
 
     permissions:
-      contents: write
+      contents: read
       packages: write
 
     steps:
