@@ -48,7 +48,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract tag name
         id: tag
