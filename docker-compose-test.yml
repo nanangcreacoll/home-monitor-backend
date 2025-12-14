@@ -1,0 +1,44 @@
+services:
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    env_file:
+      - .env.example
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  emqx:
+    image: emqx/emqx-enterprise:latest
+    environment:
+    - "EMQX_NODE_NAME=emqx@127.0.0.1"
+    - "EMQX_CLUSTER__DISCOVERY_STRATEGY=singleton"
+    ports:
+      - "1884:1883"
+      - "8084:8083"
+      - "18084:18083"
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      mysql:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+    env_file:
+      - .env.example
+
+networks:
+  emqx-bridge:
+    driver: bridge
