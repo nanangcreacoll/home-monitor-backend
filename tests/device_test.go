@@ -20,11 +20,14 @@ var deviceService services.DeviceService
 func init() {
 	envPath := utils.FindDotEnv(3)
 	if envPath == "" {
-		log.Fatal("Could not find .env file")
+		log.Println("Could not find .env file")
 	}
 
-	if err := godotenv.Load(envPath); err != nil {
-		log.Fatal("Error loading .env file: ", err)
+	if envPath != "" {
+		err := godotenv.Load(envPath)
+		if err != nil {
+			log.Fatalf("Error loading .env file: %v", err)
+		}
 	}
 
 	database.ConnectDB()
