@@ -18,6 +18,20 @@ definitions:
           $ref: '#/definitions/models.DeviceResponse'
         type: array
     type: object
+  models.DeviceLoginRequest:
+    properties:
+      mac_address:
+        type: string
+    required:
+    - mac_address
+    type: object
+  models.DeviceLoginResponse:
+    properties:
+      token:
+        type: string
+      uuid:
+        type: string
+    type: object
   models.DeviceMeasurement:
     properties:
       created_at:
@@ -85,6 +99,13 @@ definitions:
     properties:
       message:
         type: string
+    type: object
+  models.UserListResponse:
+    properties:
+      users:
+        items:
+          $ref: '#/definitions/models.UserProfileResponse'
+        type: array
     type: object
   models.UserLoginRequest:
     properties:
@@ -445,6 +466,40 @@ paths:
       summary: List devices
       tags:
       - devices
+  /device/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate device and return JWT token
+      parameters:
+      - description: Device login request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.DeviceLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DeviceLoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Device login
+      tags:
+      - devices
   /device/measurements:
     delete:
       consumes:
@@ -669,6 +724,33 @@ paths:
       security:
       - BearerAuth: []
       summary: Update user profile
+      tags:
+      - users
+  /user/list:
+    get:
+      description: Retrieve a list of users (admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List users
       tags:
       - users
   /user/login:

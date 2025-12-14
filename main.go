@@ -101,13 +101,16 @@ func main() {
 
 	database.Migrations()
 
-	if os.Args[len(os.Args)-1] == string(Seed) || os.Args[len(os.Args)-1] == string(SeedShort) {
+	if os.Args[len(os.Args)-1] == string(Seed) || os.Args[len(os.Args)-1] == string(SeedShort) || os.Getenv("SEEDERS") == "true" {
 		err := database.Seed()
 		if err != nil {
 			log.Fatalf("Seeding failed: %v", err)
 		}
 		log.Println("Seeding completed successfully")
-		return
+
+		if len(os.Args) == 2 {
+			return
+		}
 	}
 
 	userRepo := repositories.NewUserRepository()
@@ -130,7 +133,7 @@ func main() {
 	routes.DeviceRoutes(r, deviceController)
 
 	docs.SwaggerInfo.BasePath = "/api"
-	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	r.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	err = pkg.MqttInit()
 	if err != nil {

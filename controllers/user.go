@@ -219,7 +219,7 @@ func (ctrl *UserController) UserDelete(c *gin.Context) {
 // @Failure 403 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Security BearerAuth
-// @Router /users [get]
+// @Router /user/list [get]
 func (ctrl *UserController) UserList(c *gin.Context) {
 	userUUID, exists := c.Get("userUUID")
 	if !exists {

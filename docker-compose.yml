@@ -1,0 +1,70 @@
+services:
+  app:
+    container_name: home-monitor-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/nanangcreacoll/home-monitor-backend:latest
+    working_dir: /app
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      emqx:
+        condition: service_started
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - home-monitor-network
+
+  mysql:
+    container_name: home-monitor-mysql
+    image: mysql:8.0
+    env_file:
+      - .env
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - home-monitor-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  emqx:
+    container_name: home-monitor-emqx
+    image: emqx/emqx-enterprise:latest
+    environment:
+    - "EMQX_NODE_NAME=emqx@node2.emqx.com"
+    - "EMQX_CLUSTER__DISCOVERY_STRATEGY=static"
+    - "EMQX_CLUSTER__STATIC__SEEDS=[emqx@node1.emqx.com,emqx@node2.emqx.com]"
+    ports:
+      - "1883:1883"
+      - "8083:8083"
+      - "18083:18083"
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - emqx-etc:/opt/emqx/etc
+    networks:
+      - home-monitor-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 5s
+      timeout: 25s
+      retries: 5
+
+volumes:
+  db-data:
+  emqx-data:
+  emqx-etc:
+
+networks:
+  home-monitor-network:
+    driver: bridge
