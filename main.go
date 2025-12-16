@@ -4,6 +4,7 @@ import (
 	"home-monitor-backend/controllers"
 	"home-monitor-backend/database"
 	"home-monitor-backend/docs"
+	"home-monitor-backend/middlewares"
 	"home-monitor-backend/pkg"
 	"home-monitor-backend/repositories"
 	"home-monitor-backend/routes"
@@ -129,6 +130,8 @@ func main() {
 	}
 
 	r := gin.Default()
+
+	r.Use(middlewares.CORS())
 
 	routes.RootRoute(r)
 	routes.UserRoutes(r, userController)
