@@ -16,10 +16,10 @@ func UserRoutes(r *gin.Engine, controllers *controllers.UserController) {
 	apiAuth := r.Group("/api/user")
 	apiAuth.Use(middlewares.Auth())
 	{
-		apiAuth.POST("/", controllers.UserRegister)
-		apiAuth.GET("/", controllers.UserProfile)
-		apiAuth.PUT("/", controllers.UserUpdate)
-		apiAuth.DELETE("/", controllers.UserDelete)
+		apiAuth.POST("", controllers.UserRegister)
+		apiAuth.GET("", controllers.UserProfile)
+		apiAuth.PUT("", controllers.UserUpdate)
+		apiAuth.DELETE("", controllers.UserDelete)
 		apiAuth.GET("/list", controllers.UserList)
 	}
 }

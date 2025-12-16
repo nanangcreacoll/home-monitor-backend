@@ -16,9 +16,9 @@ func DeviceRoutes(r *gin.Engine, controllers *controllers.DeviceController) {
 	apiAuth := r.Group("/api/device")
 	apiAuth.Use(middlewares.Auth())
 	{
-		apiAuth.POST("/", controllers.DeviceRegister)
+		apiAuth.POST("", controllers.DeviceRegister)
 		apiAuth.GET("/list", controllers.DeviceList)
-		apiAuth.DELETE("/", controllers.DeviceDelete)
+		apiAuth.DELETE("", controllers.DeviceDelete)
 		apiAuth.GET("/:uuid", controllers.DeviceProfile)
 		apiAuth.PUT("/:uuid", controllers.DeviceUpdate)
 		apiAuth.DELETE("/:uuid", controllers.DeviceDelete)
