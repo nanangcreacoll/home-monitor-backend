@@ -14,24 +14,18 @@ func DeviceRun(db *gorm.DB) error {
 		return errors.New("db is nil")
 	}
 
-	deviceID1 := uint(1)
-	deviceID2 := uint(2)
-
 	devices := []models.Device{
 		{
-			Name:          "monitor-1",
-			UserCreatedID: &deviceID1,
-			MacAddress:    "00:00:00:00:00:01",
+			Name:       "monitor-1",
+			MacAddress: "00:00:00:00:00:01",
 		},
 		{
-			Name:          "monitor-2",
-			UserCreatedID: &deviceID1,
-			MacAddress:    "00:00:00:00:00:02",
+			Name:       "monitor-2",
+			MacAddress: "00:00:00:00:00:02",
 		},
 		{
-			Name:          "monitor-3",
-			UserCreatedID: &deviceID2,
-			MacAddress:    "00:00:00:00:00:03",
+			Name:       "monitor-3",
+			MacAddress: "00:00:00:00:00:03",
 		},
 	}
 

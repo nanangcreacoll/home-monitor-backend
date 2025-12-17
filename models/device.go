@@ -9,13 +9,12 @@ import (
 )
 
 type Device struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
-	UUID          uuid.UUID `gorm:"unique" json:"uuid" validate:"required,uuid"`
-	Name          string    `gorm:"unique" json:"name"`
-	MacAddress    string    `gorm:"unique" json:"mac_address"`
-	UserCreatedID *uint     `json:"user_created_id"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	UUID       uuid.UUID `gorm:"unique" json:"uuid" validate:"required,uuid"`
+	Name       string    `gorm:"unique" json:"name"`
+	MacAddress string    `gorm:"unique" json:"mac_address"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type DeviceLoginRequest struct {
@@ -42,12 +41,11 @@ type DeviceDeleteRequest struct {
 }
 
 type DeviceResponse struct {
-	UUID          uuid.UUID `json:"uuid"`
-	Name          string    `json:"name"`
-	MacAddress    string    `json:"mac_address"`
-	UserCreatedID *uint     `json:"user_created_id"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	UUID       uuid.UUID `json:"uuid"`
+	Name       string    `json:"name"`
+	MacAddress string    `json:"mac_address"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type DeviceListResponse struct {
@@ -101,10 +99,6 @@ func (d *Device) BeforeCreate(tx *gorm.DB) (err error) {
 
 	if d.MacAddress == "" {
 		return errors.New("mac address is required")
-	}
-
-	if d.UserCreatedID == nil {
-		return errors.New("user_created_id is required")
 	}
 
 	d.CreatedAt = time.Now()

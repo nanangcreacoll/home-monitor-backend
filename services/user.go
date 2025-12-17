@@ -151,17 +151,6 @@ func (s *userService) UserDelete(ctx context.Context, userUUID uuid.UUID, delete
 		return nil, http.StatusForbidden, errors.New("only admin can delete other users")
 	}
 
-	deviceUser, err := s.deviceRepo.DeviceFindByUserID(ctx, user.ID)
-	if err == nil && len(deviceUser) > 0 {
-		for _, device := range deviceUser {
-			device.UserCreatedID = nil
-			_, err := s.deviceRepo.DeviceUpdate(ctx, &device)
-			if err != nil {
-				return nil, http.StatusInternalServerError, errors.New("failed to update device ownership")
-			}
-		}
-	}
-
 	if err := s.userRepo.UserDelete(ctx, user); err != nil {
 		return nil, http.StatusInternalServerError, err
 	}

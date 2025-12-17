@@ -60,26 +60,31 @@ func main() {
 			log.Fatalf("Failed to generate secret: %v", err)
 		}
 
-		file, err := os.ReadFile(envPath)
-		if err != nil {
-			log.Fatalf("Failed to read .env file: %v", err)
-		}
-
-		lines := strings.Split(string(file), "\n")
-		for i, line := range lines {
-			if strings.HasPrefix(line, "JWT_SECRET=") {
-				lines[i] = "JWT_SECRET=" + secret
-				break
+		if envPath != "" {
+			file, err := os.ReadFile(envPath)
+			if err != nil {
+				log.Fatalf("Failed to read .env file: %v", err)
 			}
-		}
 
-		newContent := strings.Join(lines, "\n")
-		err = os.WriteFile(envPath, []byte(newContent), 0644)
-		if err != nil {
-			log.Fatalf("Failed to write to .env file: %v", err)
-		}
+			lines := strings.Split(string(file), "\n")
+			for i, line := range lines {
+				if strings.HasPrefix(line, "JWT_SECRET=") {
+					lines[i] = "JWT_SECRET=" + secret
+					break
+				}
+			}
 
-		log.Println("JWT secret generated and updated in .env file successfully")
+			newContent := strings.Join(lines, "\n")
+			err = os.WriteFile(envPath, []byte(newContent), 0644)
+			if err != nil {
+				log.Fatalf("Failed to write to .env file: %v", err)
+			}
+
+			log.Println("JWT secret generated and updated in .env file successfully")
+		} else {
+			os.Setenv("JWT_SECRET", secret)
+			log.Printf("JWT secret generated: %s, set to environment as JWT_SECRET\n", secret)
+		}
 
 		return
 	}

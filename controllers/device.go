@@ -57,12 +57,11 @@ func (ctrl *DeviceController) DeviceRegister(c *gin.Context) {
 	}
 
 	c.JSON(statusCode, models.DeviceResponse{
-		UUID:          createdDevice.UUID,
-		MacAddress:    createdDevice.MacAddress,
-		Name:          createdDevice.Name,
-		UserCreatedID: createdDevice.UserCreatedID,
-		CreatedAt:     createdDevice.CreatedAt,
-		UpdatedAt:     createdDevice.UpdatedAt,
+		UUID:       createdDevice.UUID,
+		MacAddress: createdDevice.MacAddress,
+		Name:       createdDevice.Name,
+		CreatedAt:  createdDevice.CreatedAt,
+		UpdatedAt:  createdDevice.UpdatedAt,
 	})
 }
 
@@ -171,12 +170,11 @@ func (ctrl *DeviceController) DeviceList(c *gin.Context) {
 	var deviceResponses []models.DeviceResponse
 	for _, device := range devices {
 		deviceResponses = append(deviceResponses, models.DeviceResponse{
-			UUID:          device.UUID,
-			MacAddress:    device.MacAddress,
-			Name:          device.Name,
-			UserCreatedID: device.UserCreatedID,
-			CreatedAt:     device.CreatedAt,
-			UpdatedAt:     device.UpdatedAt,
+			UUID:       device.UUID,
+			MacAddress: device.MacAddress,
+			Name:       device.Name,
+			CreatedAt:  device.CreatedAt,
+			UpdatedAt:  device.UpdatedAt,
 		})
 	}
 
@@ -216,12 +214,11 @@ func (ctrl *DeviceController) DeviceProfile(c *gin.Context) {
 	}
 
 	c.JSON(statusCode, models.DeviceResponse{
-		UUID:          device.UUID,
-		MacAddress:    device.MacAddress,
-		Name:          device.Name,
-		UserCreatedID: device.UserCreatedID,
-		CreatedAt:     device.CreatedAt,
-		UpdatedAt:     device.UpdatedAt,
+		UUID:       device.UUID,
+		MacAddress: device.MacAddress,
+		Name:       device.Name,
+		CreatedAt:  device.CreatedAt,
+		UpdatedAt:  device.UpdatedAt,
 	})
 }
 
@@ -268,12 +265,11 @@ func (ctrl *DeviceController) DeviceUpdate(c *gin.Context) {
 	}
 
 	c.JSON(statusCode, models.DeviceResponse{
-		UUID:          updatedDevice.UUID,
-		MacAddress:    updatedDevice.MacAddress,
-		Name:          updatedDevice.Name,
-		UserCreatedID: updatedDevice.UserCreatedID,
-		CreatedAt:     updatedDevice.CreatedAt,
-		UpdatedAt:     updatedDevice.UpdatedAt,
+		UUID:       updatedDevice.UUID,
+		MacAddress: updatedDevice.MacAddress,
+		Name:       updatedDevice.Name,
+		CreatedAt:  updatedDevice.CreatedAt,
+		UpdatedAt:  updatedDevice.UpdatedAt,
 	})
 }
 
