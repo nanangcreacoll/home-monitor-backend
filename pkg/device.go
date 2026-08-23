@@ -17,8 +17,10 @@ var DeviceMessageQueue Queue
 var deviceRepo repositories.DeviceRepository
 
 const (
-	DeviceTopic       = "req/device/#"
-	DeviceResultTopic = "res/device"
+	DeviceTopic          = "req/device/#"
+	DeviceResultTopic    = "res/device"
+	DeviceOfflineTimeout = 5 * time.Minute
+	StatusCheckInterval  = 5 * time.Minute
 )
 
 type ResultStatus int
@@ -168,6 +170,11 @@ func DeviceMainTask() {
 			continue
 		}
 
+		err = deviceRepo.DeviceUpdateStatus(ctx, device.ID, true)
+		if err != nil {
+			log.Printf("Warning: Failed to update device status for device %s: %v", deviceUUID, err)
+		}
+
 		response := models.DeviceMeasurementMqttResponse{
 			Result: ResultStatusSuccess,
 		}
@@ -181,7 +188,51 @@ func DeviceMainTask() {
 	}
 }
 
+func DeviceStatusChecker() {
+	ctx := context.Background()
+
+	ticker := time.NewTicker(StatusCheckInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		devices, err := deviceRepo.DeviceList(ctx, 0, false)
+		if err != nil {
+			log.Printf("Error fetching devices for status check: %v", err)
+			continue
+		}
+
+		for _, device := range devices {
+			if !device.Status {
+				continue
+			}
+
+			measurements, err := deviceRepo.DeviceMeasurementsByDeviceID(ctx, 1, device.ID, true, nil, nil)
+			if err != nil {
+				log.Printf("Error fetching measurements for device %s: %v", device.UUID, err)
+				continue
+			}
+
+			if len(measurements) == 0 {
+				continue
+			}
+
+			lastMeasurement := measurements[0]
+			timeSinceLastMeasurement := time.Since(lastMeasurement.CreatedAt)
+
+			if timeSinceLastMeasurement > DeviceOfflineTimeout {
+				err = deviceRepo.DeviceUpdateStatus(ctx, device.ID, false)
+				if err != nil {
+					log.Printf("Error updating device status to offline for device %s: %v", device.UUID, err)
+				} else {
+					log.Printf("Device %s marked as offline (last seen: %v ago)", device.UUID, timeSinceLastMeasurement.Round(time.Second))
+				}
+			}
+		}
+	}
+}
+
 func DeviceInit(repo repositories.DeviceRepository) {
 	deviceRepo = repo
 	go DeviceMainTask()
+	go DeviceStatusChecker()
 }

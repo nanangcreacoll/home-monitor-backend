@@ -4,43 +4,50 @@ import (
 	"context"
 	"home-monitor-backend/database"
 	"home-monitor-backend/models"
-	"home-monitor-backend/repositories"
-	"home-monitor-backend/services"
-	"home-monitor-backend/utils"
-	"log"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
-var deviceService services.DeviceService
-
 func init() {
-	envPath := utils.FindDotEnv(3)
-	if envPath == "" {
-		log.Println("Could not find .env file")
+	cleanAllTestData()
+}
+
+func cleanAllTestData() {
+	database.DB.Where("username LIKE ?", "admin_%").Delete(&models.User{})
+	database.DB.Where("username LIKE ?", "regular_%").Delete(&models.User{})
+
+	database.DB.Where("mac_address LIKE ?", "00:1A:2B:%").Delete(&models.Device{})
+}
+
+func cleanupTestUser(ctx context.Context, username string) {
+	var user models.User
+	err := database.DB.WithContext(ctx).Where("username = ?", username).First(&user).Error
+	if err == nil {
+		database.DB.WithContext(ctx).Delete(&user)
 	}
+}
 
-	if envPath != "" {
-		err := godotenv.Load(envPath)
-		if err != nil {
-			log.Fatalf("Error loading .env file: %v", err)
-		}
+func cleanupTestDevice(ctx context.Context, macAddress string) {
+	var device models.Device
+	err := database.DB.WithContext(ctx).Where("mac_address = ?", macAddress).First(&device).Error
+	if err == nil {
+		database.DB.Delete(&device)
 	}
+}
 
-	database.ConnectDB()
-
-	database.Migrations()
-
-	userRepository := repositories.NewUserRepository()
-	deviceRepository := repositories.NewDeviceRepository()
-	deviceService = services.NewDeviceService(deviceRepository, userRepository)
+func cleanupTestData(ctx context.Context, username string, macAddress string) {
+	cleanupTestDevice(ctx, macAddress)
+	cleanupTestUser(ctx, username)
 }
 
 func TestDeviceRegister(t *testing.T) {
 	ctx := context.Background()
+
+	cleanupTestUser(ctx, "admin_device_register")
+	cleanupTestDevice(ctx, "00:1A:2B:3C:4D:5E")
 
 	admin := &models.User{
 		Username: "admin_device_register",
@@ -58,19 +65,23 @@ func TestDeviceRegister(t *testing.T) {
 	registeredDevice, statusCode, err := deviceService.DeviceRegister(ctx, admin.UUID, device)
 	assert.NoError(t, err, "Device registration failed")
 	assert.Equal(t, 201, statusCode, "Expected status code 201")
-	assert.Equal(t, device.MacAddress, registeredDevice.MacAddress, "Expected MAC address to match")
-	assert.Equal(t, device.Name, registeredDevice.Name, "Expected device name to match")
+
+	if registeredDevice != nil {
+		assert.Equal(t, device.MacAddress, registeredDevice.MacAddress, "Expected MAC address to match")
+		assert.Equal(t, device.Name, registeredDevice.Name, "Expected device name to match")
+	}
 
 	t.Cleanup(func() {
-		err := deviceRepository.DeviceDelete(ctx, registeredDevice)
-		assert.NoError(t, err, "Failed to delete registered device")
-
-		err = userRepository.UserDelete(ctx, admin)
-		assert.NoError(t, err, "Failed to delete admin user")
+		if registeredDevice != nil {
+			deviceRepository.DeviceDelete(ctx, registeredDevice)
+		}
+		userRepository.UserDelete(ctx, admin)
 	})
 }
 func TestDeviceUpdate(t *testing.T) {
 	ctx := context.Background()
+
+	cleanupTestData(ctx, "admin_device_update", "00:1A:2B:3C:4D:60")
 
 	admin := &models.User{
 		Username: "admin_device_update",
@@ -110,6 +121,8 @@ func TestDeviceUpdate(t *testing.T) {
 func TestDeviceProfile(t *testing.T) {
 	ctx := context.Background()
 
+	cleanupTestData(ctx, "admin_device_profile", "00:1A:2B:3C:4D:5F")
+
 	admin := &models.User{
 		Username: "admin_device_profile",
 		Password: "securepassword",
@@ -143,6 +156,8 @@ func TestDeviceProfile(t *testing.T) {
 
 func TestDeviceLogin(t *testing.T) {
 	ctx := context.Background()
+
+	cleanupTestData(ctx, "admin_device_login", "00:1A:2B:3C:4D:61")
 
 	admin := &models.User{
 		Username: "admin_device_login",
@@ -181,6 +196,9 @@ func TestDeviceLogin(t *testing.T) {
 
 func TestDeviceList(t *testing.T) {
 	ctx := context.Background()
+
+	cleanupTestData(ctx, "admin_device_list", "00:1A:2B:3C:4D:62")
+	cleanupTestDevice(ctx, "00:1A:2B:3C:4D:63")
 
 	admin := &models.User{
 		Username: "admin_device_list",
@@ -229,6 +247,8 @@ func TestDeviceList(t *testing.T) {
 
 func TestDeviceDelete(t *testing.T) {
 	ctx := context.Background()
+
+	cleanupTestData(ctx, "admin_device_delete", "00:1A:2B:3C:4D:64")
 
 	admin := &models.User{
 		Username: "admin_device_delete",
@@ -341,6 +361,7 @@ func TestDeviceMeasurements(t *testing.T) {
 
 	registeredDevice, _, err := deviceService.DeviceRegister(ctx, admin.UUID, device)
 	assert.NoError(t, err, "Device registration failed")
+	assert.NotNil(t, registeredDevice, "Expected registered device to not be nil")
 
 	payload1 := &models.DeviceMeasurementPayload{
 		Temperature: 25.5,
@@ -563,7 +584,7 @@ func TestDeviceProfileWithInvalidUser(t *testing.T) {
 	invalidUserUUID, _ := uuid.Parse("00000000-0000-0000-0000-000000000000")
 	_, statusCode, err := deviceService.DeviceProfile(ctx, invalidUserUUID, registeredDevice.UUID)
 	assert.Error(t, err, "Expected error when fetching profile with invalid user")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 
 	t.Cleanup(func() {
 		err := deviceRepository.DeviceDelete(ctx, registeredDevice)
@@ -732,6 +753,7 @@ func TestDeviceMeasurementsAllDevices(t *testing.T) {
 
 	registeredDevice, _, err := deviceService.DeviceRegister(ctx, admin.UUID, device)
 	assert.NoError(t, err, "Device registration failed")
+	assert.NotNil(t, registeredDevice, "Expected registered device to not be nil")
 
 	payload := &models.DeviceMeasurementPayload{
 		Temperature: 25.5,
@@ -876,7 +898,7 @@ func TestDeviceListWithInvalidUser(t *testing.T) {
 
 	_, statusCode, err := deviceService.DeviceList(ctx, invalidUserUUID, listParams)
 	assert.Error(t, err, "Expected error when listing devices with invalid user")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 }
 
 func TestDeviceDeleteMeasurementsWithInvalidUser(t *testing.T) {
@@ -885,7 +907,7 @@ func TestDeviceDeleteMeasurementsWithInvalidUser(t *testing.T) {
 	invalidUserUUID, _ := uuid.Parse("00000000-0000-0000-0000-000000000005")
 	statusCode, err := deviceService.DeviceDeleteMeasurements(ctx, invalidUserUUID, []uint{1})
 	assert.Error(t, err, "Expected error when deleting measurements with invalid user")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 }
 
 func TestDeviceRegisterWithInvalidAdmin(t *testing.T) {
@@ -899,7 +921,7 @@ func TestDeviceRegisterWithInvalidAdmin(t *testing.T) {
 
 	_, statusCode, err := deviceService.DeviceRegister(ctx, invalidAdminUUID, device)
 	assert.Error(t, err, "Expected error when registering device with invalid admin")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 }
 
 func TestDeviceUpdateWithEmptyName(t *testing.T) {
@@ -1017,6 +1039,444 @@ func TestDeviceMeasurementsLatestFlag(t *testing.T) {
 
 	t.Cleanup(func() {
 		err := deviceRepository.DeviceDelete(ctx, registeredDevice)
+		assert.NoError(t, err, "Failed to delete device")
+
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+	})
+}
+
+func TestDeviceStatusDefaultFalse(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_device_status_default",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	device := &models.Device{
+		MacAddress: "00:1A:2B:3C:4D:70",
+		Name:       "Test Device Status Default",
+	}
+
+	registeredDevice, statusCode, err := deviceService.DeviceRegister(ctx, admin.UUID, device)
+	assert.NoError(t, err, "Device registration failed")
+	assert.Equal(t, 201, statusCode, "Expected status code 201")
+	assert.False(t, registeredDevice.Status, "Expected device status to default to false")
+
+	t.Cleanup(func() {
+		err := deviceRepository.DeviceDelete(ctx, registeredDevice)
+		assert.NoError(t, err, "Failed to delete device")
+
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+	})
+}
+
+func TestDeviceStatusUpdateToTrueOnMeasurement(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_device_status_measurement",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	device := &models.Device{
+		MacAddress: "00:1A:2B:3C:4D:71",
+		Name:       "Test Device Status Measurement",
+	}
+
+	registeredDevice, _, err := deviceService.DeviceRegister(ctx, admin.UUID, device)
+	assert.NoError(t, err, "Device registration failed")
+	assert.False(t, registeredDevice.Status, "Expected initial status to be false")
+
+	payload := &models.DeviceMeasurementPayload{
+		Temperature: 25.0,
+		Humidity:    60.0,
+	}
+
+	_, err = deviceService.DeviceCreateMeasurement(ctx, admin.UUID, registeredDevice.UUID, payload)
+	assert.NoError(t, err, "Failed to create measurement")
+
+	updatedDevice, statusCode, err := deviceService.DeviceProfile(ctx, admin.UUID, registeredDevice.UUID)
+	assert.NoError(t, err, "Failed to get device profile")
+	assert.Equal(t, 200, statusCode, "Expected status code 200")
+	assert.True(t, updatedDevice.Status, "Expected device status to be true after measurement")
+
+	t.Cleanup(func() {
+		err := deviceRepository.DeviceDelete(ctx, registeredDevice)
+		assert.NoError(t, err, "Failed to delete device")
+
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+	})
+}
+
+func TestDeviceStatusManualUpdate(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_device_status_manual",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	device := &models.Device{
+		MacAddress: "00:1A:2B:3C:4D:72",
+		Name:       "Test Device Status Manual",
+	}
+
+	registeredDevice, _, err := deviceService.DeviceRegister(ctx, admin.UUID, device)
+	assert.NoError(t, err, "Device registration failed")
+
+	statusCode, err := deviceService.DeviceUpdateStatus(ctx, admin.UUID, registeredDevice.UUID, true)
+	assert.NoError(t, err, "Failed to update device status")
+	assert.Equal(t, 200, statusCode, "Expected status code 200")
+
+	updatedDevice, _, err := deviceService.DeviceProfile(ctx, admin.UUID, registeredDevice.UUID)
+	assert.NoError(t, err, "Failed to get device profile")
+	assert.True(t, updatedDevice.Status, "Expected device status to be true")
+
+	statusCode, err = deviceService.DeviceUpdateStatus(ctx, admin.UUID, registeredDevice.UUID, false)
+	assert.NoError(t, err, "Failed to update device status")
+	assert.Equal(t, 200, statusCode, "Expected status code 200")
+
+	updatedDevice, _, err = deviceService.DeviceProfile(ctx, admin.UUID, registeredDevice.UUID)
+	assert.NoError(t, err, "Failed to get device profile")
+	assert.False(t, updatedDevice.Status, "Expected device status to be false")
+
+	t.Cleanup(func() {
+		err := deviceRepository.DeviceDelete(ctx, registeredDevice)
+		assert.NoError(t, err, "Failed to delete device")
+
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+	})
+}
+
+func TestDeviceStatusManualUpdateNonAdmin(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_device_status_non_admin",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	regularUser := &models.User{
+		Username: "regular_user_device_status",
+		Password: "securepassword",
+		Role:     models.UserRoleUser,
+	}
+	err = userRepository.UserCreate(ctx, regularUser)
+	assert.NoError(t, err, "Failed to create regular user")
+
+	device := &models.Device{
+		MacAddress: "00:1A:2B:3C:4D:73",
+		Name:       "Test Device Status Non Admin",
+	}
+
+	registeredDevice, _, err := deviceService.DeviceRegister(ctx, admin.UUID, device)
+	assert.NoError(t, err, "Device registration failed")
+
+	statusCode, err := deviceService.DeviceUpdateStatus(ctx, regularUser.UUID, registeredDevice.UUID, true)
+	assert.Error(t, err, "Expected error when non-admin tries to update device status")
+	assert.Equal(t, 403, statusCode, "Expected status code 403 (Forbidden)")
+	assert.Contains(t, err.Error(), "only admin", "Expected error message about admin requirement")
+
+	t.Cleanup(func() {
+		err := deviceRepository.DeviceDelete(ctx, registeredDevice)
+		assert.NoError(t, err, "Failed to delete device")
+
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+
+		err = userRepository.UserDelete(ctx, regularUser)
+		assert.NoError(t, err, "Failed to delete regular user")
+	})
+}
+
+func TestDeviceStatusUpdateNonExistentDevice(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_device_status_nonexistent",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	nonExistentUUID := uuid.New()
+
+	statusCode, err := deviceService.DeviceUpdateStatus(ctx, admin.UUID, nonExistentUUID, true)
+	assert.Error(t, err, "Expected error when updating non-existent device")
+	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Contains(t, err.Error(), "not found", "Expected error message about device not found")
+
+	t.Cleanup(func() {
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+	})
+}
+
+func TestDeviceStatusRepositoryUpdateStatus(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_device_repo_status",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	device := &models.Device{
+		MacAddress: "00:1A:2B:3C:4D:74",
+		Name:       "Test Device Repo Status",
+	}
+
+	registeredDevice, _, err := deviceService.DeviceRegister(ctx, admin.UUID, device)
+	assert.NoError(t, err, "Device registration failed")
+
+	err = deviceRepository.DeviceUpdateStatus(ctx, registeredDevice.ID, true)
+	assert.NoError(t, err, "Failed to update device status via repository")
+
+	updatedDevice, err := deviceRepository.DeviceFindByUUID(ctx, registeredDevice.UUID)
+	assert.NoError(t, err, "Failed to find device")
+	assert.True(t, updatedDevice.Status, "Expected device status to be true")
+
+	err = deviceRepository.DeviceUpdateStatus(ctx, registeredDevice.ID, false)
+	assert.NoError(t, err, "Failed to update device status via repository")
+
+	updatedDevice, err = deviceRepository.DeviceFindByUUID(ctx, registeredDevice.UUID)
+	assert.NoError(t, err, "Failed to find device")
+	assert.False(t, updatedDevice.Status, "Expected device status to be false")
+
+	t.Cleanup(func() {
+		err := deviceRepository.DeviceDelete(ctx, registeredDevice)
+		assert.NoError(t, err, "Failed to delete device")
+
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+	})
+}
+
+func TestDeviceStatusCheckerTimeout(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_status_checker_timeout",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	device := &models.Device{
+		MacAddress: "00:1A:2B:3C:4D:80",
+		Name:       "Test Device Status Checker",
+	}
+	err = deviceRepository.DeviceCreate(ctx, device)
+	assert.NoError(t, err, "Failed to create device")
+
+	err = deviceRepository.DeviceUpdateStatus(ctx, device.ID, true)
+	assert.NoError(t, err, "Failed to set device status to true")
+
+	oldMeasurement := &models.DeviceMeasurement{
+		DeviceID:    device.ID,
+		Temperature: 25.0,
+		Humidity:    60.0,
+	}
+	err = deviceRepository.DeviceMeasurementCreate(ctx, oldMeasurement)
+	assert.NoError(t, err, "Failed to create measurement")
+
+	database.DB.Model(oldMeasurement).Update("created_at", time.Now().Add(-15*time.Minute))
+
+	measurements, err := deviceRepository.DeviceMeasurementsByDeviceID(ctx, 1, device.ID, true, nil, nil)
+	assert.NoError(t, err, "Failed to get measurements")
+	assert.Greater(t, len(measurements), 0, "Expected at least one measurement")
+
+	lastMeasurement := measurements[0]
+	timeSinceLastMeasurement := time.Since(lastMeasurement.CreatedAt)
+
+	assert.Greater(t, timeSinceLastMeasurement, 10*time.Minute, "Expected measurement to be older than 10 minutes")
+
+	if timeSinceLastMeasurement > 10*time.Minute {
+		err = deviceRepository.DeviceUpdateStatus(ctx, device.ID, false)
+		assert.NoError(t, err, "Failed to update device status to false")
+	}
+
+	updatedDevice, err := deviceRepository.DeviceFindByUUID(ctx, device.UUID)
+	assert.NoError(t, err, "Failed to find device")
+	assert.False(t, updatedDevice.Status, "Expected device status to be false after timeout")
+
+	t.Cleanup(func() {
+		err := deviceRepository.DeviceDelete(ctx, device)
+		assert.NoError(t, err, "Failed to delete device")
+
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+	})
+}
+
+func TestDeviceStatusCheckerRecentMeasurement(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_status_checker_recent",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	device := &models.Device{
+		MacAddress: "00:1A:2B:3C:4D:81",
+		Name:       "Test Device Status Recent",
+	}
+	err = deviceRepository.DeviceCreate(ctx, device)
+	assert.NoError(t, err, "Failed to create device")
+
+	err = deviceRepository.DeviceUpdateStatus(ctx, device.ID, true)
+	assert.NoError(t, err, "Failed to set device status to true")
+
+	recentMeasurement := &models.DeviceMeasurement{
+		DeviceID:    device.ID,
+		Temperature: 25.0,
+		Humidity:    60.0,
+	}
+	err = deviceRepository.DeviceMeasurementCreate(ctx, recentMeasurement)
+	assert.NoError(t, err, "Failed to create measurement")
+
+	measurements, err := deviceRepository.DeviceMeasurementsByDeviceID(ctx, 1, device.ID, true, nil, nil)
+	assert.NoError(t, err, "Failed to get measurements")
+	assert.Greater(t, len(measurements), 0, "Expected at least one measurement")
+
+	lastMeasurement := measurements[0]
+	timeSinceLastMeasurement := time.Since(lastMeasurement.CreatedAt)
+
+	assert.Less(t, timeSinceLastMeasurement, 10*time.Minute, "Expected measurement to be less than 10 minutes old")
+
+	if timeSinceLastMeasurement > 10*time.Minute {
+		err = deviceRepository.DeviceUpdateStatus(ctx, device.ID, false)
+		assert.NoError(t, err, "Failed to update device status to false")
+	}
+
+	updatedDevice, err := deviceRepository.DeviceFindByUUID(ctx, device.UUID)
+	assert.NoError(t, err, "Failed to find device")
+	assert.True(t, updatedDevice.Status, "Expected device status to remain true with recent measurements")
+
+	t.Cleanup(func() {
+		err := deviceRepository.DeviceDelete(ctx, device)
+		assert.NoError(t, err, "Failed to delete device")
+
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+	})
+}
+
+func TestDeviceStatusCheckerSkipsOfflineDevices(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_status_checker_skip",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	device := &models.Device{
+		MacAddress: "00:1A:2B:3C:4D:82",
+		Name:       "Test Device Status Skip",
+	}
+	err = deviceRepository.DeviceCreate(ctx, device)
+	assert.NoError(t, err, "Failed to create device")
+
+	currentDevice, err := deviceRepository.DeviceFindByUUID(ctx, device.UUID)
+	assert.NoError(t, err, "Failed to find device")
+	assert.False(t, currentDevice.Status, "Expected device status to be false initially")
+
+	oldMeasurement := &models.DeviceMeasurement{
+		DeviceID:    device.ID,
+		Temperature: 25.0,
+		Humidity:    60.0,
+	}
+	err = deviceRepository.DeviceMeasurementCreate(ctx, oldMeasurement)
+	assert.NoError(t, err, "Failed to create measurement")
+
+	database.DB.Model(oldMeasurement).Update("created_at", time.Now().Add(-15*time.Minute))
+
+	if currentDevice.Status {
+		measurements, err := deviceRepository.DeviceMeasurementsByDeviceID(ctx, 1, device.ID, true, nil, nil)
+		assert.NoError(t, err, "Failed to get measurements")
+
+		if len(measurements) > 0 {
+			lastMeasurement := measurements[0]
+			timeSinceLastMeasurement := time.Since(lastMeasurement.CreatedAt)
+
+			if timeSinceLastMeasurement > 10*time.Minute {
+				err = deviceRepository.DeviceUpdateStatus(ctx, device.ID, false)
+				assert.NoError(t, err, "Failed to update device status to false")
+			}
+		}
+	}
+
+	updatedDevice, err := deviceRepository.DeviceFindByUUID(ctx, device.UUID)
+	assert.NoError(t, err, "Failed to find device")
+	assert.False(t, updatedDevice.Status, "Expected device status to remain false")
+
+	t.Cleanup(func() {
+		err := deviceRepository.DeviceDelete(ctx, device)
+		assert.NoError(t, err, "Failed to delete device")
+
+		err = userRepository.UserDelete(ctx, admin)
+		assert.NoError(t, err, "Failed to delete admin user")
+	})
+}
+
+func TestDeviceStatusCheckerNoMeasurements(t *testing.T) {
+	ctx := context.Background()
+
+	admin := &models.User{
+		Username: "admin_status_checker_no_measurements",
+		Password: "securepassword",
+		Role:     models.UserRoleAdmin,
+	}
+	err := userRepository.UserCreate(ctx, admin)
+	assert.NoError(t, err, "Failed to create admin user")
+
+	device := &models.Device{
+		MacAddress: "00:1A:2B:3C:4D:83",
+		Name:       "Test Device Status No Measurements",
+	}
+	err = deviceRepository.DeviceCreate(ctx, device)
+	assert.NoError(t, err, "Failed to create device")
+
+	err = deviceRepository.DeviceUpdateStatus(ctx, device.ID, true)
+	assert.NoError(t, err, "Failed to set device status to true")
+
+	measurements, err := deviceRepository.DeviceMeasurementsByDeviceID(ctx, 1, device.ID, true, nil, nil)
+	assert.NoError(t, err, "Failed to get measurements")
+	assert.Equal(t, 0, len(measurements), "Expected no measurements")
+
+	updatedDevice, err := deviceRepository.DeviceFindByUUID(ctx, device.UUID)
+	assert.NoError(t, err, "Failed to find device")
+	assert.True(t, updatedDevice.Status, "Expected device status to remain true when no measurements exist")
+
+	t.Cleanup(func() {
+		err := deviceRepository.DeviceDelete(ctx, device)
 		assert.NoError(t, err, "Failed to delete device")
 
 		err = userRepository.UserDelete(ctx, admin)

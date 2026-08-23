@@ -2,44 +2,12 @@ package tests
 
 import (
 	"context"
-	"home-monitor-backend/database"
 	"home-monitor-backend/models"
-	"home-monitor-backend/repositories"
-	"home-monitor-backend/services"
-	"home-monitor-backend/utils"
-	"log"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
-
-var userRepository repositories.UserRepository
-var deviceRepository repositories.DeviceRepository
-var userService services.UserService
-
-func init() {
-	envPath := utils.FindDotEnv(3)
-	if envPath == "" {
-		log.Println("Could not find .env file")
-	}
-
-	if envPath != "" {
-		err := godotenv.Load(envPath)
-		if err != nil {
-			log.Fatalf("Error loading .env file: %v", err)
-		}
-	}
-
-	database.ConnectDB()
-
-	database.Migrations()
-
-	userRepository = repositories.NewUserRepository()
-	deviceRepository = repositories.NewDeviceRepository()
-	userService = services.NewUserService(userRepository, deviceRepository)
-}
 
 func TestUserRegister(t *testing.T) {
 	ctx := context.Background()
@@ -136,7 +104,7 @@ func TestUserProfile(t *testing.T) {
 	nonExistentUUID := uuid.New()
 	_, statusCode, err = userService.UserProfile(ctx, nonExistentUUID)
 	assert.Error(t, err, "Expected error for non-existent user")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 
 	t.Cleanup(func() {
 		userRepository.UserDelete(ctx, user)
@@ -280,7 +248,7 @@ func TestUserDelete(t *testing.T) {
 
 	_, statusCode, err = userService.UserProfile(ctx, user.UUID)
 	assert.Error(t, err, "Expected error for deleted user profile")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 
 	deletedAdmin, statusCode, err := userService.UserDelete(ctx, admin.UUID, uuid.Nil)
 	assert.NoError(t, err, "Admin self-deletion failed")
@@ -289,12 +257,12 @@ func TestUserDelete(t *testing.T) {
 
 	_, statusCode, err = userService.UserProfile(ctx, admin.UUID)
 	assert.Error(t, err, "Expected error for deleted admin profile")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 
 	nonExistentUUID := uuid.New()
 	_, statusCode, err = userService.UserDelete(ctx, nonExistentUUID, uuid.Nil)
 	assert.Error(t, err, "Expected error for non-existent user")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 }
 
 func TestUserList(t *testing.T) {
@@ -332,7 +300,7 @@ func TestUserList(t *testing.T) {
 	nonExistentUUID := uuid.New()
 	_, statusCode, err = userService.UserList(ctx, nonExistentUUID, 50)
 	assert.Error(t, err, "Expected error for non-existent user")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 
 	t.Cleanup(func() {
 		userRepository.UserDelete(ctx, admin)
@@ -392,7 +360,7 @@ func TestUserProfileNonExistent(t *testing.T) {
 	nonExistentUUID := uuid.New()
 	_, statusCode, err := userService.UserProfile(ctx, nonExistentUUID)
 	assert.Error(t, err, "Expected error for non-existent user profile")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 }
 
 func TestUserUpdateNonAdminCannotChangePassword(t *testing.T) {
@@ -446,7 +414,7 @@ func TestUserUpdateNonExistentUser(t *testing.T) {
 
 	_, statusCode, err := userService.UserUpdate(ctx, nonExistentUUID, updateRequest)
 	assert.Error(t, err, "Expected error for non-existent user update")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 }
 
 func TestUserUpdateWrongPassword(t *testing.T) {
@@ -551,7 +519,7 @@ func TestUserDeleteNonExistentUser(t *testing.T) {
 	nonExistentUUID := uuid.New()
 	_, statusCode, err := userService.UserDelete(ctx, nonExistentUUID, uuid.Nil)
 	assert.Error(t, err, "Expected error for non-existent user deletion")
-	assert.Equal(t, 404, statusCode, "Expected status code 404")
+	assert.Equal(t, 401, statusCode, "Expected status code 401")
 }
 
 func TestUserDeleteAsNonAdminOtherUser(t *testing.T) {

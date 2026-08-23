@@ -3,6 +3,7 @@ package controllers
 import (
 	"home-monitor-backend/models"
 	"home-monitor-backend/services"
+	"home-monitor-backend/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,7 +42,8 @@ func (ctrl *DeviceController) DeviceRegister(c *gin.Context) {
 
 	var input models.DeviceCreateRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		errors := utils.ValidationError(err)
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
 		return
 	}
 
@@ -62,6 +64,7 @@ func (ctrl *DeviceController) DeviceRegister(c *gin.Context) {
 		Name:       createdDevice.Name,
 		CreatedAt:  createdDevice.CreatedAt,
 		UpdatedAt:  createdDevice.UpdatedAt,
+		Status:     createdDevice.Status,
 	})
 }
 
@@ -80,7 +83,8 @@ func (ctrl *DeviceController) DeviceRegister(c *gin.Context) {
 func (ctrl *DeviceController) DeviceLogin(c *gin.Context) {
 	var input models.DeviceLoginRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		errors := utils.ValidationError(err)
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
 		return
 	}
 
@@ -157,7 +161,8 @@ func (ctrl *DeviceController) DeviceList(c *gin.Context) {
 
 	var requestParams models.DeviceListRequestParams
 	if err := c.ShouldBindQuery(&requestParams); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		errors := utils.ValidationError(err)
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
 		return
 	}
 
@@ -175,6 +180,7 @@ func (ctrl *DeviceController) DeviceList(c *gin.Context) {
 			Name:       device.Name,
 			CreatedAt:  device.CreatedAt,
 			UpdatedAt:  device.UpdatedAt,
+			Status:     device.Status,
 		})
 	}
 
@@ -219,6 +225,7 @@ func (ctrl *DeviceController) DeviceProfile(c *gin.Context) {
 		Name:       device.Name,
 		CreatedAt:  device.CreatedAt,
 		UpdatedAt:  device.UpdatedAt,
+		Status:     device.Status,
 	})
 }
 
@@ -254,7 +261,8 @@ func (ctrl *DeviceController) DeviceUpdate(c *gin.Context) {
 
 	var input models.DeviceUpdateRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		errors := utils.ValidationError(err)
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
 		return
 	}
 
@@ -270,7 +278,54 @@ func (ctrl *DeviceController) DeviceUpdate(c *gin.Context) {
 		Name:       updatedDevice.Name,
 		CreatedAt:  updatedDevice.CreatedAt,
 		UpdatedAt:  updatedDevice.UpdatedAt,
+		Status:     updatedDevice.Status,
 	})
+}
+
+// DeviceUpdateStatus godoc
+// @Summary Update device status
+// @Description Update device status (online/offline) - Admin only
+// @Tags devices
+// @Accept json
+// @Produce json
+// @Param uuid path string true "Device UUID"
+// @Param request body models.DeviceUpdateStatusRequest true "Device status update request"
+// @Success 200 {object} models.ResponseMessage
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Security BearerAuth
+// @Router /device/{uuid}/status [patch]
+func (ctrl *DeviceController) DeviceUpdateStatus(c *gin.Context) {
+	userUUID, exists := c.Get("userUUID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "Unauthorized"})
+		return
+	}
+
+	deviceUUIDParam := c.Param("uuid")
+	deviceUUID, err := uuid.Parse(deviceUUIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "Invalid device UUID"})
+		return
+	}
+
+	var input models.DeviceUpdateStatusRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		errors := utils.ValidationError(err)
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
+		return
+	}
+
+	statusCode, err := ctrl.deviceService.DeviceUpdateStatus(c, userUUID.(uuid.UUID), deviceUUID, input.Status)
+	if err != nil {
+		c.JSON(statusCode, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(statusCode, models.ResponseMessage{Message: "Device status updated successfully"})
 }
 
 // DeviceMeasurements godoc
@@ -297,7 +352,8 @@ func (ctrl *DeviceController) DeviceMeasurements(c *gin.Context) {
 
 	var requestParams models.DeviceMeasurementRequestParams
 	if err := c.ShouldBindQuery(&requestParams); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		errors := utils.ValidationError(err)
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
 		return
 	}
 
@@ -307,7 +363,10 @@ func (ctrl *DeviceController) DeviceMeasurements(c *gin.Context) {
 		return
 	}
 
-	c.JSON(statusCode, measurements)
+	c.JSON(
+		statusCode,
+		models.DeviceMeasurementListResponse{Measurements: measurements},
+	)
 }
 
 // DeviceCreateMeasurement godoc
@@ -341,7 +400,8 @@ func (ctrl *DeviceController) DeviceCreateMeasurement(c *gin.Context) {
 
 	var input models.DeviceMeasurementPayload
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		errors := utils.ValidationError(err)
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
 		return
 	}
 
@@ -378,7 +438,8 @@ func (ctrl *DeviceController) DeviceDeleteMeasurements(c *gin.Context) {
 
 	var input models.DeviceMeasurementDeleteRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		errors := utils.ValidationError(err)
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: errors})
 		return
 	}
 

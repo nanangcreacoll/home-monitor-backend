@@ -2,6 +2,7 @@ package seeders
 
 import (
 	"errors"
+	"time"
 
 	"home-monitor-backend/models"
 
@@ -39,21 +40,29 @@ func DeviceMeasurementRun(db *gorm.DB) error {
 		return errors.New("db is nil")
 	}
 
+	var device models.Device
+	if err := db.First(&device).Error; err != nil {
+		return errors.New("no devices found for seeding measurements")
+	}
+
 	measurements := []models.DeviceMeasurement{
 		{
-			DeviceID:    1,
+			DeviceID:    device.ID,
 			Temperature: 25.5,
 			Humidity:    60.0,
+			CreatedAt:   time.Now().Add(-10 * time.Minute),
 		},
 		{
-			DeviceID:    1,
+			DeviceID:    device.ID,
 			Temperature: 26.0,
 			Humidity:    58.0,
+			CreatedAt:   time.Now().Add(-5 * time.Minute),
 		},
 		{
-			DeviceID:    1,
+			DeviceID:    device.ID,
 			Temperature: 24.5,
 			Humidity:    65.0,
+			CreatedAt:   time.Now(),
 		},
 	}
 

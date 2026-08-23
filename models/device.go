@@ -15,6 +15,7 @@ type Device struct {
 	MacAddress string    `gorm:"unique" json:"mac_address"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	Status     bool      `json:"status"`
 }
 
 type DeviceLoginRequest struct {
@@ -36,6 +37,10 @@ type DeviceUpdateRequest struct {
 	MacAddress string `json:"mac_address" binding:"omitempty,mac"`
 }
 
+type DeviceUpdateStatusRequest struct {
+	Status bool `json:"status"`
+}
+
 type DeviceDeleteRequest struct {
 	UUID uuid.UUID `json:"uuid" binding:"required,uuid"`
 }
@@ -46,6 +51,7 @@ type DeviceResponse struct {
 	MacAddress string    `json:"mac_address"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	Status     bool      `json:"status"`
 }
 
 type DeviceListResponse struct {
@@ -80,8 +86,10 @@ type DeviceMeasurementListResponse struct {
 
 type DeviceMeasurementRequestParams struct {
 	Length     int    `form:"length" binding:"omitempty"`
-	DeviceUUID string `form:"device_uuid" binding:"omitempty,uuid"`
+	DeviceUUID string `form:"uuid" binding:"omitempty,uuid"`
 	Latest     bool   `form:"latest" binding:"omitempty"`
+	StartTime  string `form:"start_time" binding:"omitempty"`
+	EndTime    string `form:"end_time" binding:"omitempty"`
 }
 
 type DeviceMeasurementMqttResponse struct {
@@ -101,8 +109,13 @@ func (d *Device) BeforeCreate(tx *gorm.DB) (err error) {
 		return errors.New("mac address is required")
 	}
 
-	d.CreatedAt = time.Now()
-	d.UpdatedAt = time.Now()
+	if d.CreatedAt.IsZero() {
+		d.CreatedAt = time.Now()
+	}
+
+	if d.UpdatedAt.IsZero() {
+		d.UpdatedAt = time.Now()
+	}
 
 	return nil
 }
@@ -112,7 +125,9 @@ func (d *DeviceMeasurement) BeforeCreate(tx *gorm.DB) (err error) {
 		return errors.New("device_id is required")
 	}
 
-	d.CreatedAt = time.Now()
+	if d.CreatedAt.IsZero() {
+		d.CreatedAt = time.Now()
+	}
 
 	return nil
 }

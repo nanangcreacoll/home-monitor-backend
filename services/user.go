@@ -33,7 +33,7 @@ func NewUserService(userRepo repositories.UserRepository, deviceRepo repositorie
 func (s *userService) UserRegister(ctx context.Context, input models.UserRegisterRequest, userUUID uuid.UUID) (*models.User, int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+		return nil, http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	if user.Role != models.UserRoleAdmin {
@@ -74,7 +74,7 @@ func (s *userService) UserLogin(ctx context.Context, input models.UserLoginReque
 func (s *userService) UserProfile(ctx context.Context, userUUID uuid.UUID) (*models.User, int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+		return nil, http.StatusUnauthorized, errors.New("user not found")
 	}
 	return user, http.StatusOK, nil
 }
@@ -82,7 +82,7 @@ func (s *userService) UserProfile(ctx context.Context, userUUID uuid.UUID) (*mod
 func (s *userService) UserUpdate(ctx context.Context, userUUID uuid.UUID, userUpdate *models.UserUpdateRequest) (*models.User, int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return user, http.StatusNotFound, errors.New("user not found")
+		return user, http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	if user.Role != models.UserRoleAdmin {
@@ -144,7 +144,7 @@ func (s *userService) UserUpdate(ctx context.Context, userUUID uuid.UUID, userUp
 func (s *userService) UserDelete(ctx context.Context, userUUID uuid.UUID, deleteUUID uuid.UUID) (*models.User, int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+		return nil, http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	if deleteUUID != uuid.Nil && deleteUUID != userUUID && user.Role != models.UserRoleAdmin {
@@ -160,7 +160,7 @@ func (s *userService) UserDelete(ctx context.Context, userUUID uuid.UUID, delete
 func (s *userService) UserList(ctx context.Context, userUUID uuid.UUID, length int) ([]models.User, int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+		return nil, http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	if user.Role != models.UserRoleAdmin {

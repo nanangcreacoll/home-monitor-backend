@@ -21,6 +21,7 @@ func DeviceRoutes(r *gin.Engine, controllers *controllers.DeviceController) {
 		apiAuth.DELETE("", controllers.DeviceDelete)
 		apiAuth.GET("/:uuid", controllers.DeviceProfile)
 		apiAuth.PUT("/:uuid", controllers.DeviceUpdate)
+		apiAuth.PATCH("/:uuid/status", controllers.DeviceUpdateStatus)
 		apiAuth.DELETE("/:uuid", controllers.DeviceDelete)
 		apiAuth.GET("/measurements", controllers.DeviceMeasurements)
 		apiAuth.DELETE("/measurements", controllers.DeviceDeleteMeasurements)

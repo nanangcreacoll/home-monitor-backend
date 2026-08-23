@@ -7,6 +7,7 @@ import (
 	"home-monitor-backend/repositories"
 	"home-monitor-backend/utils"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -18,6 +19,7 @@ type DeviceService interface {
 	DeviceList(ctx context.Context, userUUID uuid.UUID, requestParams *models.DeviceListRequestParams) ([]models.Device, int, error)
 	DeviceProfile(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID) (*models.Device, int, error)
 	DeviceUpdate(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID, deviceUpdate *models.DeviceUpdateRequest) (*models.Device, int, error)
+	DeviceUpdateStatus(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID, status bool) (int, error)
 	DeviceMeasurements(ctx context.Context, userUUID uuid.UUID, requestParams *models.DeviceMeasurementRequestParams) ([]models.DeviceMeasurement, int, error)
 	DeviceCreateMeasurement(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID, payload *models.DeviceMeasurementPayload) (*models.DeviceMeasurement, error)
 	DeviceDeleteMeasurements(ctx context.Context, userUUID uuid.UUID, measurementIDs []uint) (int, error)
@@ -35,7 +37,7 @@ func NewDeviceService(deviceRepo repositories.DeviceRepository, userRepo reposit
 func (s *deviceService) DeviceRegister(ctx context.Context, userUUID uuid.UUID, device *models.Device) (*models.Device, int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+		return nil, http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	if user.Role != models.UserRoleAdmin {
@@ -45,6 +47,11 @@ func (s *deviceService) DeviceRegister(ctx context.Context, userUUID uuid.UUID, 
 	existingDevice, _ := s.deviceRepo.DeviceFindByMacAddress(ctx, device.MacAddress)
 	if existingDevice != nil {
 		return nil, http.StatusConflict, errors.New("device with this MAC address already exists")
+	}
+
+	existingDevice, _ = s.deviceRepo.DeviceFindByName(ctx, device.Name)
+	if existingDevice != nil {
+		return nil, http.StatusConflict, errors.New("device with this name already exists")
 	}
 
 	if err := s.deviceRepo.DeviceCreate(ctx, device); err != nil {
@@ -71,7 +78,7 @@ func (s *deviceService) DeviceLogin(ctx context.Context, deviceLoginRequest *mod
 func (s *deviceService) DeviceDelete(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID) (int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return http.StatusNotFound, errors.New("user not found")
+		return http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	if user.Role != models.UserRoleAdmin {
@@ -83,7 +90,7 @@ func (s *deviceService) DeviceDelete(ctx context.Context, userUUID uuid.UUID, de
 		return http.StatusNotFound, errors.New("device not found")
 	}
 
-	measurements, err := s.deviceRepo.DeviceMeasurementsByDeviceID(ctx, 1, device.ID, false)
+	measurements, err := s.deviceRepo.DeviceMeasurementsByDeviceID(ctx, 1, device.ID, false, nil, nil)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -102,7 +109,7 @@ func (s *deviceService) DeviceDelete(ctx context.Context, userUUID uuid.UUID, de
 func (s *deviceService) DeviceList(ctx context.Context, userUUID uuid.UUID, requestParams *models.DeviceListRequestParams) ([]models.Device, int, error) {
 	_, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+		return nil, http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	devices, err := s.deviceRepo.DeviceList(ctx, requestParams.Length, requestParams.Latest)
@@ -115,7 +122,7 @@ func (s *deviceService) DeviceList(ctx context.Context, userUUID uuid.UUID, requ
 func (s *deviceService) DeviceProfile(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID) (*models.Device, int, error) {
 	_, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+		return nil, http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	device, err := s.deviceRepo.DeviceFindByUUID(ctx, deviceUUID)
@@ -128,7 +135,7 @@ func (s *deviceService) DeviceProfile(ctx context.Context, userUUID uuid.UUID, d
 func (s *deviceService) DeviceUpdate(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID, deviceUpdate *models.DeviceUpdateRequest) (*models.Device, int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+		return nil, http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	if user.Role != models.UserRoleAdmin {
@@ -160,7 +167,27 @@ func (s *deviceService) DeviceMeasurements(ctx context.Context, userUUID uuid.UU
 
 	_, err = s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+		return nil, http.StatusUnauthorized, errors.New("user not found")
+	}
+
+	startTime := requestParams.StartTime
+	endTime := requestParams.EndTime
+
+	var startTimePtr *string
+	var endTimePtr *string
+
+	if startTime != "" {
+		startTimePtr = &startTime
+	} else {
+		start := time.Now().AddDate(0, 0, -1).Format(time.RFC3339)
+		startTimePtr = &start
+	}
+
+	if endTime != "" {
+		endTimePtr = &endTime
+	} else {
+		end := time.Now().Format(time.RFC3339)
+		endTimePtr = &end
 	}
 
 	if requestParams.DeviceUUID != "" {
@@ -174,12 +201,22 @@ func (s *deviceService) DeviceMeasurements(ctx context.Context, userUUID uuid.UU
 			return nil, http.StatusNotFound, errors.New("device not found")
 		}
 
-		measurements, err = s.deviceRepo.DeviceMeasurementsByDeviceID(ctx, requestParams.Length, device.ID, requestParams.Latest)
+		measurements, err = s.deviceRepo.DeviceMeasurementsByDeviceID(ctx, requestParams.Length, device.ID, requestParams.Latest, startTimePtr, endTimePtr)
+
+		if len(measurements) == 0 {
+			measurements, err = s.deviceRepo.DeviceMeasurementsByDeviceID(ctx, requestParams.Length, device.ID, requestParams.Latest, nil, nil)
+		}
+
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
 	} else {
-		measurements, err = s.deviceRepo.DeviceMeasurements(ctx, requestParams.Length, requestParams.Latest)
+		measurements, err = s.deviceRepo.DeviceMeasurements(ctx, requestParams.Length, requestParams.Latest, startTimePtr, endTimePtr)
+
+		if len(measurements) == 0 {
+			measurements, err = s.deviceRepo.DeviceMeasurements(ctx, requestParams.Length, requestParams.Latest, nil, nil)
+		}
+
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
@@ -209,13 +246,39 @@ func (s *deviceService) DeviceCreateMeasurement(ctx context.Context, userUUID uu
 		return nil, err
 	}
 
+	if err := s.deviceRepo.DeviceUpdateStatus(ctx, device.ID, true); err != nil {
+		return nil, err
+	}
+
 	return measurement, nil
+}
+
+func (s *deviceService) DeviceUpdateStatus(ctx context.Context, userUUID uuid.UUID, deviceUUID uuid.UUID, status bool) (int, error) {
+	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
+	if err != nil {
+		return http.StatusUnauthorized, errors.New("user not found")
+	}
+
+	if user.Role != models.UserRoleAdmin {
+		return http.StatusForbidden, errors.New("only admin can update device status")
+	}
+
+	device, err := s.deviceRepo.DeviceFindByUUID(ctx, deviceUUID)
+	if err != nil {
+		return http.StatusNotFound, errors.New("device not found")
+	}
+
+	if err := s.deviceRepo.DeviceUpdateStatus(ctx, device.ID, status); err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }
 
 func (s *deviceService) DeviceDeleteMeasurements(ctx context.Context, userUUID uuid.UUID, measurementIDs []uint) (int, error) {
 	user, err := s.userRepo.UserFindByUUID(ctx, userUUID)
 	if err != nil {
-		return http.StatusNotFound, errors.New("user not found")
+		return http.StatusUnauthorized, errors.New("user not found")
 	}
 
 	if user.Role != models.UserRoleAdmin {

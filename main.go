@@ -150,7 +150,7 @@ func main() {
 		log.Fatalf("Failed to initialize MQTT client: %v", err)
 	}
 
-	go pkg.DeviceInit(deviceRepo)
+	pkg.DeviceInit(deviceRepo)
 
 	r.Run(":8080")
 }
